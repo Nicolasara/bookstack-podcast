@@ -124,7 +124,7 @@ async def _openai_tts_to_file(client, model: str, voice: str, text: str, path: s
 async def _generate_openai(text: str, output_path: str, voice: str = None) -> float:
     client = _get_openai_client()
     voice = voice or "alloy"
-    model = get_setting("openai_tts_model", "gpt-4o-mini-tts")
+    model = get_setting("openai_tts_model", "gpt-4o-mini-tts-2025-03-20")
     chunks = _chunk_text(text, 4000)
     combined = AudioSegment.empty()
 
@@ -143,12 +143,12 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
 
     client = _get_openai_client()
     voices = {"A": OPENAI_PODCAST_VOICE_A, "B": OPENAI_PODCAST_VOICE_B}
-    model = get_setting("openai_tts_model", "gpt-4o-mini-tts")
+    model = get_setting("openai_tts_model", "gpt-4o-mini-tts-2025-03-20")
     pause = AudioSegment.silent(duration=400)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Generate all segments in parallel (batches of 10 to avoid rate limits)
-        batch_size = 10
+        # 3000 RPM on the dated model — fire all segments at once
+        batch_size = 50
         for start in range(0, len(segments), batch_size):
             batch = segments[start : start + batch_size]
             tasks = []
