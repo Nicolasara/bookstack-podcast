@@ -150,6 +150,14 @@ async def process_conversion(
             else:
                 content = await bookstack.get_page(bookstack_id)
 
+            # Save metadata immediately so the UI shows title while processing
+            await db.update_episode(episode_id, {
+                "title": content["title"],
+                "description": content.get("description", ""),
+                "book_id": content.get("book_id"),
+                "book_name": content.get("book_name", ""),
+            })
+
             text = content["text"]
             if not text.strip():
                 raise ValueError("Page has no text content")

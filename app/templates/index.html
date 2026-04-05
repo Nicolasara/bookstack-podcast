@@ -39,19 +39,19 @@
             vertical-align: middle;
         }
         #settings-row { margin-bottom: 1rem; }
-        .page-card { margin-bottom: 0.5rem; padding: 0.75rem; }
-        .page-card header { padding: 0; margin-bottom: 0.5rem; }
+        .page-card { margin: 0 0 0.25rem 0; padding: 0.5rem 1rem; }
+        .page-card header { padding: 0; margin: 0 0 0.25rem 0; }
         .rendering-row {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             padding: 0.4rem 0;
             border-top: 1px solid var(--pico-muted-border-color);
-            flex-wrap: wrap;
         }
-        .rendering-row .mode-badge { min-width: 5rem; text-align: center; margin: 0; }
-        .rendering-row .duration { min-width: 3rem; opacity: 0.7; font-size: 0.9em; }
-        .rendering-row audio { flex: 1; min-width: 150px; }
+        .rendering-row .mode-badge { min-width: 6rem; text-align: center; margin: 0; flex-shrink: 0; }
+        .rendering-row .duration { min-width: 3rem; opacity: 0.7; font-size: 0.9em; flex-shrink: 0; }
+        .rendering-row audio { flex: 1; min-width: 120px; }
+        .rendering-row .actions { margin-left: auto; flex-shrink: 0; }
     </style>
 </head>
 <body>
