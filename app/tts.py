@@ -108,23 +108,30 @@ def _get_openai_client():
     return AsyncOpenAI(api_key=api_key)
 
 
+async def _openai_tts_to_file(client, model: str, voice: str, text: str, path: str):
+    """Generate a single TTS segment and write to file."""
+    async with client.audio.speech.with_streaming_response.create(
+        model=model,
+        voice=voice,
+        input=text,
+        response_format="mp3",
+    ) as response:
+        with open(path, "wb") as f:
+            async for chunk in response.iter_bytes():
+                f.write(chunk)
+
+
 async def _generate_openai(text: str, output_path: str, voice: str = None) -> float:
     client = _get_openai_client()
     voice = voice or "alloy"
-    # OpenAI TTS has a ~4096 char limit per request, chunk if needed
+    model = get_setting("openai_tts_model", "gpt-4o-mini-tts")
     chunks = _chunk_text(text, 4000)
     combined = AudioSegment.empty()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         for i, chunk in enumerate(chunks):
             tmp_path = os.path.join(tmpdir, f"chunk_{i}.mp3")
-            response = await client.audio.speech.create(
-                model=get_setting("openai_tts_model", "tts-1"),
-                voice=voice,
-                input=chunk,
-                response_format="mp3",
-            )
-            await response.astream_to_file(tmp_path)
+            await _openai_tts_to_file(client, model, voice, chunk, tmp_path)
             combined += AudioSegment.from_mp3(tmp_path)
 
     combined.export(output_path, format="mp3")
@@ -134,7 +141,7 @@ async def _generate_openai(text: str, output_path: str, voice: str = None) -> fl
 async def _generate_podcast_openai(segments: list[dict], output_path: str) -> float:
     client = _get_openai_client()
     voices = {"A": OPENAI_PODCAST_VOICE_A, "B": OPENAI_PODCAST_VOICE_B}
-    model = get_setting("openai_tts_model", "tts-1")
+    model = get_setting("openai_tts_model", "gpt-4o-mini-tts")
     combined = AudioSegment.empty()
     pause = AudioSegment.silent(duration=400)
 
@@ -142,13 +149,7 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
         for i, seg in enumerate(segments):
             voice = voices.get(seg["speaker"], voices["A"])
             tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
-            response = await client.audio.speech.create(
-                model=model,
-                voice=voice,
-                input=seg["text"],
-                response_format="mp3",
-            )
-            await response.astream_to_file(tmp_path)
+            await _openai_tts_to_file(client, model, voice, seg["text"], tmp_path)
             combined += AudioSegment.from_mp3(tmp_path) + pause
 
     combined.export(output_path, format="mp3")
