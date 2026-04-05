@@ -72,10 +72,10 @@
 
             <div id="settings-row" class="grid">
                 <select id="mode-select" onchange="toggleMode()">
-                    <option value="narration">Narration (single voice)</option>
                     {% if has_podcast %}
                     <option value="podcast">Podcast (2-host discussion)</option>
                     {% endif %}
+                    <option value="narration">Narration (single voice)</option>
                 </select>
                 <select id="voice-select">
                     {% for voice_id, voice_name in voices %}
@@ -155,6 +155,7 @@
         const mode = document.getElementById('mode-select').value;
         document.getElementById('voice-select').style.display = mode === 'narration' ? '' : 'none';
     }
+    toggleMode();
 
     let searchTimeout;
     function debounceSearch() {
