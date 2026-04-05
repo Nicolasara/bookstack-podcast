@@ -19,7 +19,6 @@ class BookStackClient:
 
     async def get_page(self, page_id: int) -> dict:
         async with httpx.AsyncClient() as client:
-            # Metadata
             meta_resp = await client.get(
                 f"{self.base_url}/api/pages/{page_id}",
                 headers=self.headers,
@@ -27,7 +26,16 @@ class BookStackClient:
             meta_resp.raise_for_status()
             meta = meta_resp.json()
 
-            # Plaintext export (BookStack handles HTML-to-text)
+            # Fetch book name
+            book_name = ""
+            if meta.get("book_id"):
+                book_resp = await client.get(
+                    f"{self.base_url}/api/books/{meta['book_id']}",
+                    headers=self.headers,
+                )
+                if book_resp.status_code == 200:
+                    book_name = book_resp.json().get("name", "")
+
             text_resp = await client.get(
                 f"{self.base_url}/api/pages/{page_id}/export/plaintext",
                 headers=self.headers,
@@ -39,6 +47,8 @@ class BookStackClient:
                 "title": meta["name"],
                 "description": meta.get("description", ""),
                 "text": text,
+                "book_id": meta.get("book_id"),
+                "book_name": book_name,
             }
 
     async def get_chapter(self, chapter_id: int) -> dict:
@@ -49,6 +59,16 @@ class BookStackClient:
             )
             meta_resp.raise_for_status()
             meta = meta_resp.json()
+
+            # Fetch book name
+            book_name = ""
+            if meta.get("book_id"):
+                book_resp = await client.get(
+                    f"{self.base_url}/api/books/{meta['book_id']}",
+                    headers=self.headers,
+                )
+                if book_resp.status_code == 200:
+                    book_name = book_resp.json().get("name", "")
 
             text_resp = await client.get(
                 f"{self.base_url}/api/chapters/{chapter_id}/export/plaintext",
@@ -61,6 +81,8 @@ class BookStackClient:
                 "title": meta["name"],
                 "description": meta.get("description", ""),
                 "text": text,
+                "book_id": meta.get("book_id"),
+                "book_name": book_name,
             }
 
     async def resolve_query(self, query: str, content_type: str) -> int:

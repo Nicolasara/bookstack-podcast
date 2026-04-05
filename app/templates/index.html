@@ -39,6 +39,19 @@
             vertical-align: middle;
         }
         #settings-row { margin-bottom: 1rem; }
+        .page-card { margin-bottom: 0.5rem; padding: 0.75rem; }
+        .page-card header { padding: 0; margin-bottom: 0.5rem; }
+        .rendering-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.4rem 0;
+            border-top: 1px solid var(--pico-muted-border-color);
+            flex-wrap: wrap;
+        }
+        .rendering-row .mode-badge { min-width: 5rem; text-align: center; margin: 0; }
+        .rendering-row .duration { min-width: 3rem; opacity: 0.7; font-size: 0.9em; }
+        .rendering-row audio { flex: 1; min-width: 150px; }
     </style>
 </head>
 <body>
@@ -80,31 +93,19 @@
         <!-- Episodes -->
         <section>
             <h2>Episodes</h2>
-            {% if episodes %}
-            <figure>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Duration</th>
-                        <th>Player</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ep in episodes %}
-                    <tr>
-                        <td>
-                            {{ ep.title or "(converting...)" }}
-                            <small class="search-result-type">{{ ep.bookstack_type }}</small>
-                            {% if ep.mode == "podcast" %}
-                            <span class="mode-badge">podcast</span>
-                            {% else %}
-                            <span class="mode-badge">{{ ep.voice_label }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
+            {% if grouped %}
+            {% for book in grouped %}
+            <details open>
+                <summary><strong>{{ book.book_name }}</strong></summary>
+                {% for page in book.pages %}
+                <article class="page-card">
+                    <header><strong>{{ page.title }}</strong></header>
+                    {% for ep in page.renderings %}
+                    <div class="rendering-row">
+                        <span class="mode-badge">
+                            {% if ep.mode == "podcast" %}Podcast{% else %}{{ ep.voice_label }}{% endif %}
+                        </span>
+                        <span>
                             {% if ep.status == "done" %}
                             <span class="status-done">Done</span>
                             {% elif ep.status == "processing" %}
@@ -114,38 +115,35 @@
                             {% else %}
                             <span class="status-pending">Pending</span>
                             {% endif %}
-                        </td>
-                        <td>
+                        </span>
+                        <span class="duration">
                             {% if ep.duration_seconds %}
                             {{ "%.0f"|format(ep.duration_seconds // 60) }}:{{ "%02.0f"|format(ep.duration_seconds % 60) }}
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>
-                            {% if ep.status == "done" and ep.audio_filename %}
-                            <audio controls preload="none">
-                                <source src="/audio/{{ ep.audio_filename }}" type="audio/mpeg">
-                            </audio>
                             {% endif %}
-                        </td>
-                        <td>
-                            <div class="actions">
-                                {% if ep.status == "done" and ep.audio_filename %}
-                                <a href="/audio/{{ ep.audio_filename }}" download
-                                   role="button" class="outline secondary convert-btn" title="Download">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                </a>
-                                {% endif %}
-                                <button class="outline convert-btn btn-delete" title="Delete"
-                                        onclick="deleteEpisode({{ ep.id }})">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                        </span>
+                        {% if ep.status == "done" and ep.audio_filename %}
+                        <audio controls preload="none">
+                            <source src="/audio/{{ ep.audio_filename }}" type="audio/mpeg">
+                        </audio>
+                        {% endif %}
+                        <div class="actions">
+                            {% if ep.status == "done" and ep.audio_filename %}
+                            <a href="/audio/{{ ep.audio_filename }}" download
+                               role="button" class="outline secondary convert-btn" title="Download">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            </a>
+                            {% endif %}
+                            <button class="outline convert-btn btn-delete" title="Delete"
+                                    onclick="deleteEpisode({{ ep.id }})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            </button>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-            </figure>
+                </article>
+                {% endfor %}
+            </details>
+            {% endfor %}
             {% else %}
             <p>No episodes yet. Search for content above to get started.</p>
             {% endif %}

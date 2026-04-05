@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+from collections import OrderedDict
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Form, Request
@@ -32,6 +33,30 @@ def _voice_label(voice_id: str) -> str:
     return voice_id
 
 
+def _group_episodes(episodes: list) -> list:
+    """Group episodes into book -> page -> renderings structure."""
+    books = OrderedDict()
+    for ep in episodes:
+        book = ep.get("book_name") or "Uncategorized"
+        page_key = (ep["bookstack_type"], ep["bookstack_id"])
+        if book not in books:
+            books[book] = OrderedDict()
+        if page_key not in books[book]:
+            books[book][page_key] = {
+                "title": ep.get("title") or f"{ep['bookstack_type']} {ep['bookstack_id']}",
+                "renderings": [],
+            }
+        books[book][page_key]["renderings"].append(ep)
+
+    result = []
+    for book_name, pages in books.items():
+        result.append({
+            "book_name": book_name,
+            "pages": list(pages.values()),
+        })
+    return result
+
+
 def _audio_filename(bookstack_type: str, bookstack_id: int, mode: str, voice: str) -> str:
     """Generate a unique filename for an episode."""
     if mode == "podcast":
@@ -51,14 +76,15 @@ async def startup():
 async def index(request: Request):
     episodes = await db.get_episodes()
     has_pending = any(e["status"] in ("pending", "processing") for e in episodes)
-    # Add display label for voice
     for ep in episodes:
         ep["voice_label"] = _voice_label(ep.get("voice", ""))
+    grouped = _group_episodes(episodes)
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "episodes": episodes,
+            "grouped": grouped,
             "voices": VOICE_OPTIONS,
             "has_pending": has_pending,
             "has_podcast": has_podcast_key(),
@@ -149,6 +175,8 @@ async def process_conversion(
                     "audio_filename": filename,
                     "duration_seconds": duration,
                     "file_size": file_size,
+                    "book_id": content.get("book_id"),
+                    "book_name": content.get("book_name", ""),
                     "status": "done",
                     "error_message": None,
                 },

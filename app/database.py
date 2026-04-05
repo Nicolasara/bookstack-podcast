@@ -14,20 +14,22 @@ class Database:
             cursor = await db.execute("SELECT sql FROM sqlite_master WHERE name='episodes'")
             row = await cursor.fetchone()
 
-            if row and "UNIQUE(bookstack_type, bookstack_id, mode, voice)" not in row[0]:
-                # Migrate: old schema without mode column or wrong UNIQUE
+            if row and "book_name" not in row[0]:
+                # Migrate: add book columns
                 await db.execute("ALTER TABLE episodes RENAME TO episodes_old")
                 await self._create_table(db)
-                await db.execute("""
-                    INSERT INTO episodes
-                        (id, bookstack_type, bookstack_id, title, description,
-                         audio_filename, duration_seconds, file_size, voice,
-                         status, error_message, created_at, mode)
-                    SELECT id, bookstack_type, bookstack_id, title, description,
-                           audio_filename, duration_seconds, file_size, voice,
-                           status, error_message, created_at, 'narration'
-                    FROM episodes_old
-                """)
+                # Copy data, filling missing columns with defaults
+                cols = await db.execute("PRAGMA table_info(episodes_old)")
+                old_cols = [r[1] for r in await cols.fetchall()]
+                shared = [c for c in old_cols if c in (
+                    "id", "bookstack_type", "bookstack_id", "title", "description",
+                    "audio_filename", "duration_seconds", "file_size", "voice",
+                    "mode", "status", "error_message", "created_at",
+                )]
+                col_list = ", ".join(shared)
+                await db.execute(
+                    f"INSERT INTO episodes ({col_list}) SELECT {col_list} FROM episodes_old"
+                )
                 await db.execute("DROP TABLE episodes_old")
             elif not row:
                 await self._create_table(db)
@@ -47,6 +49,8 @@ class Database:
                 file_size INTEGER,
                 voice TEXT DEFAULT '',
                 mode TEXT DEFAULT 'narration',
+                book_id INTEGER,
+                book_name TEXT DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
                 error_message TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
