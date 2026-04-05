@@ -147,16 +147,13 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
     pause = AudioSegment.silent(duration=400)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # 3000 RPM on the dated model — fire all segments at once
-        batch_size = 50
-        for start in range(0, len(segments), batch_size):
-            batch = segments[start : start + batch_size]
-            tasks = []
-            for i, seg in enumerate(batch, start=start):
-                voice = voices.get(seg["speaker"], voices["A"])
-                tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
-                tasks.append(_openai_tts_to_file(client, model, voice, seg["text"], tmp_path))
-            await asyncio.gather(*tasks)
+        # 3000 RPM / 250K TPM — a podcast uses ~63 req / ~10K chars, fire all at once
+        tasks = []
+        for i, seg in enumerate(segments):
+            voice = voices.get(seg["speaker"], voices["A"])
+            tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
+            tasks.append(_openai_tts_to_file(client, model, voice, seg["text"], tmp_path))
+        await asyncio.gather(*tasks)
 
         # Concatenate in order
         combined = AudioSegment.empty()
