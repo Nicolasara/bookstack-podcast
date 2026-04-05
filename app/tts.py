@@ -139,17 +139,29 @@ async def _generate_openai(text: str, output_path: str, voice: str = None) -> fl
 
 
 async def _generate_podcast_openai(segments: list[dict], output_path: str) -> float:
+    import asyncio
+
     client = _get_openai_client()
     voices = {"A": OPENAI_PODCAST_VOICE_A, "B": OPENAI_PODCAST_VOICE_B}
     model = get_setting("openai_tts_model", "gpt-4o-mini-tts")
-    combined = AudioSegment.empty()
     pause = AudioSegment.silent(duration=400)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        for i, seg in enumerate(segments):
-            voice = voices.get(seg["speaker"], voices["A"])
+        # Generate all segments in parallel (batches of 10 to avoid rate limits)
+        batch_size = 10
+        for start in range(0, len(segments), batch_size):
+            batch = segments[start : start + batch_size]
+            tasks = []
+            for i, seg in enumerate(batch, start=start):
+                voice = voices.get(seg["speaker"], voices["A"])
+                tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
+                tasks.append(_openai_tts_to_file(client, model, voice, seg["text"], tmp_path))
+            await asyncio.gather(*tasks)
+
+        # Concatenate in order
+        combined = AudioSegment.empty()
+        for i in range(len(segments)):
             tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
-            await _openai_tts_to_file(client, model, voice, seg["text"], tmp_path)
             combined += AudioSegment.from_mp3(tmp_path) + pause
 
     combined.export(output_path, format="mp3")
