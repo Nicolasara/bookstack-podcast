@@ -191,15 +191,18 @@
     }
 
     function buildConvertForm(result) {
-        const mode = document.getElementById('mode-select').value;
-        const voice = document.getElementById('voice-select').value;
-        return '<form method="post" action="/convert" style="margin:0">' +
+        return '<form method="post" action="/convert" style="margin:0" onsubmit="fillConvertFields(this)">' +
             '<input type="hidden" name="bookstack_type" value="' + result.type + '">' +
             '<input type="hidden" name="bookstack_id" value="' + result.id + '">' +
-            '<input type="hidden" name="voice" value="' + voice + '">' +
-            '<input type="hidden" name="mode" value="' + mode + '">' +
+            '<input type="hidden" name="voice">' +
+            '<input type="hidden" name="mode">' +
             '<button type="submit" class="outline convert-btn">Convert</button>' +
         '</form>';
+    }
+
+    function fillConvertFields(form) {
+        form.voice.value = document.getElementById('voice-select').value;
+        form.mode.value = document.getElementById('mode-select').value;
     }
 
     function escHtml(s) {
