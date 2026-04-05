@@ -36,6 +36,7 @@
             margin-left: 0.5rem;
             vertical-align: middle;
         }
+        #settings-row { margin-bottom: 1rem; }
     </style>
 </head>
 <body>
@@ -47,20 +48,19 @@
             </p>
         </hgroup>
 
-        <!-- Search + options -->
+        <!-- Convert -->
         <section>
             <h2>Find Content</h2>
-            <div class="grid">
-                <input type="search" id="search-input" placeholder="Search BookStack..."
-                       oninput="debounceSearch()" autocomplete="off">
+            <input type="search" id="search-input" placeholder="Search BookStack by name or paste a URL..."
+                   oninput="debounceSearch()" autocomplete="off">
+
+            <div id="settings-row" class="grid">
                 <select id="mode-select" onchange="toggleMode()">
-                    <option value="narration">Narration</option>
+                    <option value="narration">Narration (single voice)</option>
                     {% if has_openai %}
-                    <option value="podcast">Podcast (2 hosts)</option>
+                    <option value="podcast">Podcast (2-host discussion)</option>
                     {% endif %}
                 </select>
-            </div>
-            <div id="voice-row">
                 <select id="voice-select">
                     {% for voice_id, voice_name in voices %}
                     <option value="{{ voice_id }}">{{ voice_name }}</option>
@@ -68,48 +68,11 @@
                 </select>
             </div>
             {% if not has_openai %}
-            <small>Set <code>OPENAI_API_KEY</code> to enable podcast mode (2-host discussion).</small>
+            <small>Set <code>OPENAI_API_KEY</code> to enable podcast mode.</small>
             {% endif %}
+
             <div id="search-results"></div>
         </section>
-
-        <!-- Manual convert -->
-        <details>
-            <summary>Convert by name or URL</summary>
-            <form method="post" action="/convert">
-                <div class="grid">
-                    <label>
-                        Type
-                        <select name="bookstack_type">
-                            <option value="page">Page</option>
-                            <option value="chapter">Chapter</option>
-                        </select>
-                    </label>
-                    <label>
-                        Page / Chapter
-                        <input type="text" name="bookstack_id" placeholder="Name, URL, or ID" required>
-                    </label>
-                    <label>
-                        Mode
-                        <select name="mode">
-                            <option value="narration">Narration</option>
-                            {% if has_openai %}
-                            <option value="podcast">Podcast</option>
-                            {% endif %}
-                        </select>
-                    </label>
-                    <label>
-                        Voice (narration only)
-                        <select name="voice">
-                            {% for voice_id, voice_name in voices %}
-                            <option value="{{ voice_id }}">{{ voice_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                </div>
-                <button type="submit">Convert to Audio</button>
-            </form>
-        </details>
 
         <!-- Episodes -->
         <section>
@@ -183,7 +146,7 @@
     <script>
     function toggleMode() {
         const mode = document.getElementById('mode-select').value;
-        document.getElementById('voice-row').style.display = mode === 'narration' ? '' : 'none';
+        document.getElementById('voice-select').style.display = mode === 'narration' ? '' : 'none';
     }
 
     let searchTimeout;
@@ -203,8 +166,6 @@
                 container.innerHTML = '<p><em>No results found.</em></p>';
                 return;
             }
-            const mode = document.getElementById('mode-select').value;
-            const voice = document.getElementById('voice-select').value;
             container.innerHTML = results.map(r => {
                 const canConvert = r.type === 'page' || r.type === 'chapter';
                 return '<div class="search-result">' +
@@ -212,18 +173,24 @@
                         '<strong>' + escHtml(r.name) + '</strong>' +
                         '<span class="search-result-type">' + r.type + '</span>' +
                     '</div>' +
-                    (canConvert ? '<form method="post" action="/convert" style="margin:0">' +
-                        '<input type="hidden" name="bookstack_type" value="' + r.type + '">' +
-                        '<input type="hidden" name="bookstack_id" value="' + r.id + '">' +
-                        '<input type="hidden" name="voice" value="' + voice + '">' +
-                        '<input type="hidden" name="mode" value="' + mode + '">' +
-                        '<button type="submit" class="outline convert-btn">Convert</button>' +
-                    '</form>' : '') +
+                    (canConvert ? buildConvertForm(r) : '') +
                 '</div>';
             }).join('');
         } catch (e) {
             container.innerHTML = '<p><em>Search failed.</em></p>';
         }
+    }
+
+    function buildConvertForm(result) {
+        const mode = document.getElementById('mode-select').value;
+        const voice = document.getElementById('voice-select').value;
+        return '<form method="post" action="/convert" style="margin:0">' +
+            '<input type="hidden" name="bookstack_type" value="' + result.type + '">' +
+            '<input type="hidden" name="bookstack_id" value="' + result.id + '">' +
+            '<input type="hidden" name="voice" value="' + voice + '">' +
+            '<input type="hidden" name="mode" value="' + mode + '">' +
+            '<button type="submit" class="outline convert-btn">Convert</button>' +
+        '</form>';
     }
 
     function escHtml(s) {
