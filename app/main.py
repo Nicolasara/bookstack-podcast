@@ -71,6 +71,7 @@ def _audio_filename(bookstack_type: str, bookstack_id: int, mode: str, voice: st
 async def startup():
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     await db.init()
+    asyncio.create_task(auto_convert_worker())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -94,6 +95,10 @@ async def index(request: Request):
             "llm_provider": get_setting("llm_provider", "openai"),
             "has_openai_key": bool(get_setting("openai_api_key")),
             "has_gemini_key": bool(get_setting("gemini_api_key")),
+            "auto_convert_enabled": get_setting("auto_convert_enabled", "false"),
+            "auto_convert_shelves": get_setting("auto_convert_shelves", ""),
+            "auto_convert_mode": get_setting("auto_convert_mode", "podcast"),
+            "auto_convert_interval": get_setting("auto_convert_interval", "30"),
         },
     )
 
@@ -208,12 +213,66 @@ async def process_conversion(
             await db.update_status(episode_id, "error", str(e))
 
 
+async def auto_convert_worker():
+    """Background worker that periodically scans watched shelves for new pages."""
+    await asyncio.sleep(5)  # let app finish starting
+    while True:
+        try:
+            if get_setting("auto_convert_enabled") == "true":
+                await _scan_and_convert()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        interval = int(get_setting("auto_convert_interval", "30"))
+        await asyncio.sleep(interval * 60)
+
+
+async def _scan_and_convert():
+    shelf_ids = get_setting("auto_convert_shelves", "")
+    mode = get_setting("auto_convert_mode", "podcast")
+    voice = get_setting("auto_convert_voice", "en-US-AndrewMultilingualNeural")
+    effective_voice = "podcast" if mode == "podcast" else voice
+
+    for shelf_id_str in shelf_ids.split(","):
+        shelf_id_str = shelf_id_str.strip()
+        if not shelf_id_str:
+            continue
+        pages = await bookstack.get_shelf_pages(int(shelf_id_str))
+        for page in pages:
+            existing = await db.get_episode_by_source(
+                "page", page["id"], mode, effective_voice
+            )
+            if existing:
+                continue
+            # Create episode with metadata
+            episode_id = await db.create_episode(
+                "page", page["id"], mode, effective_voice
+            )
+            await db.update_episode(episode_id, {
+                "title": page["name"],
+                "book_name": page["book_name"],
+                "book_id": page.get("book_id"),
+            })
+            await process_conversion(
+                episode_id, "page", page["id"], voice, mode
+            )
+
+
+@app.get("/api/shelves")
+async def list_shelves():
+    return await bookstack.list_shelves()
+
+
 @app.post("/settings")
 async def save_settings(
     tts_engine: str = Form("edge"),
     llm_provider: str = Form("openai"),
     openai_api_key: str = Form(""),
     gemini_api_key: str = Form(""),
+    auto_convert_enabled: str = Form("false"),
+    auto_convert_shelves: str = Form(""),
+    auto_convert_mode: str = Form("podcast"),
+    auto_convert_interval: str = Form("30"),
 ):
     set_setting("tts_engine", tts_engine)
     set_setting("llm_provider", llm_provider)
@@ -221,6 +280,10 @@ async def save_settings(
         set_setting("openai_api_key", openai_api_key)
     if gemini_api_key:
         set_setting("gemini_api_key", gemini_api_key)
+    set_setting("auto_convert_enabled", auto_convert_enabled)
+    set_setting("auto_convert_shelves", auto_convert_shelves)
+    set_setting("auto_convert_mode", auto_convert_mode)
+    set_setting("auto_convert_interval", auto_convert_interval)
     return RedirectResponse(url="/", status_code=303)
 
 

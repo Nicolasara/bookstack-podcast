@@ -216,6 +216,32 @@
         location.reload();
     }
 
+    // Load shelves into picker when settings dialog opens
+    document.getElementById('settings-dialog').addEventListener('open', loadShelves);
+    document.getElementById('settings-dialog').addEventListener('click', function(e) {
+        if (!document.getElementById('shelf-picker').children.length) loadShelves();
+    });
+    async function loadShelves() {
+        const picker = document.getElementById('shelf-picker');
+        if (picker.children.length) return;
+        try {
+            const resp = await fetch('/api/shelves');
+            const shelves = await resp.json();
+            const current = document.getElementById('auto-convert-shelves').value.split(',').map(s => s.trim());
+            shelves.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                opt.selected = current.includes(String(s.id));
+                picker.appendChild(opt);
+            });
+        } catch(e) {}
+    }
+    document.getElementById('shelf-picker').addEventListener('change', function() {
+        const selected = Array.from(this.selectedOptions).map(o => o.value);
+        document.getElementById('auto-convert-shelves').value = selected.join(',');
+    });
+
     {% if has_pending %}
     // Poll for status changes without wiping the page
     (function() {
@@ -271,6 +297,37 @@
                             <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier available)</option>
                         </select>
                     </label>
+                </fieldset>
+                <fieldset>
+                    <legend>Auto-Convert</legend>
+                    <label>
+                        <input type="checkbox" name="auto_convert_enabled" value="true"
+                               {% if auto_convert_enabled == 'true' %}checked{% endif %}>
+                        Enable auto-convert
+                    </label>
+                    <label>
+                        Watched Shelves
+                        <select id="shelf-picker" multiple size="4" style="width:100%"></select>
+                        <input type="hidden" name="auto_convert_shelves" id="auto-convert-shelves"
+                               value="{{ auto_convert_shelves }}">
+                    </label>
+                    <small id="shelf-current">
+                        {% if auto_convert_shelves %}Current: shelf IDs {{ auto_convert_shelves }}{% endif %}
+                    </small>
+                    <div class="grid">
+                        <label>
+                            Mode
+                            <select name="auto_convert_mode">
+                                <option value="podcast" {% if auto_convert_mode == 'podcast' %}selected{% endif %}>Podcast</option>
+                                <option value="narration" {% if auto_convert_mode == 'narration' %}selected{% endif %}>Narration</option>
+                            </select>
+                        </label>
+                        <label>
+                            Check every (minutes)
+                            <input type="number" name="auto_convert_interval" min="5" max="1440"
+                                   value="{{ auto_convert_interval }}">
+                        </label>
+                    </div>
                 </fieldset>
                 <fieldset>
                     <legend>API Keys</legend>

@@ -85,6 +85,58 @@ class BookStackClient:
                 "book_name": book_name,
             }
 
+    async def list_shelves(self) -> list:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.base_url}/api/shelves",
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            return [{"id": s["id"], "name": s["name"]} for s in resp.json().get("data", [])]
+
+    async def get_shelf_pages(self, shelf_id: int) -> list:
+        """Get all pages across all books on a shelf."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/shelves/{shelf_id}",
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            shelf = resp.json()
+
+            pages = []
+            for book_info in shelf.get("books", []):
+                book_resp = await client.get(
+                    f"{self.base_url}/api/books/{book_info['id']}",
+                    headers=self.headers,
+                )
+                if book_resp.status_code != 200:
+                    continue
+                book = book_resp.json()
+                for item in book.get("contents", []):
+                    if item["type"] == "page":
+                        pages.append({
+                            "id": item["id"],
+                            "name": item["name"],
+                            "book_name": book["name"],
+                            "book_id": book["id"],
+                        })
+                    elif item["type"] == "chapter":
+                        ch_resp = await client.get(
+                            f"{self.base_url}/api/chapters/{item['id']}",
+                            headers=self.headers,
+                        )
+                        if ch_resp.status_code != 200:
+                            continue
+                        for page in ch_resp.json().get("pages", []):
+                            pages.append({
+                                "id": page["id"],
+                                "name": page["name"],
+                                "book_name": book["name"],
+                                "book_id": book["id"],
+                            })
+            return pages
+
     async def get_metadata(self, content_type: str, content_id: int) -> dict:
         """Lightweight fetch of just title and book name (no plaintext export)."""
         async with httpx.AsyncClient() as client:
