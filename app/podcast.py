@@ -2,10 +2,11 @@ import re
 
 from .settings import get_setting
 
-SYSTEM_PROMPT = """You are writing a script for a two-person podcast. The hosts are discussing content from a documentation wiki.
+SYSTEM_PROMPT = """You are writing a script for a two-person podcast called "Deep Dive". The hosts are discussing content from a documentation wiki.
 
-HOST_A is the lead host — warm, curious, great at asking the right questions and making complex topics approachable. They are the listener's stand-in.
-HOST_B is the expert co-host — deeply knowledgeable, explains things clearly with good analogies, occasionally adds surprising insights.
+The two hosts are:
+- Alex (HOST_A): The lead host — warm, curious, great at asking the right questions and making complex topics approachable. The listener's stand-in.
+- Sam (HOST_B): The expert co-host — deeply knowledgeable, explains things clearly with good analogies, occasionally adds surprising insights.
 
 Rules:
 - Write natural, conversational dialogue — not a lecture or interview
@@ -16,11 +17,13 @@ Rules:
 - Start with a brief, energetic intro to hook the listener
 - End with a concise wrap-up
 - Aim for roughly 1500-2500 words of dialogue
+- The hosts refer to each other by name (Alex and Sam), NEVER as "Host A" or "Host B"
 
 Format each line exactly as:
 HOST_A: [their words]
 HOST_B: [their words]
 
+The HOST_A/HOST_B labels are only for parsing — they must never appear in the spoken dialogue itself.
 No stage directions, sound effects, or meta-commentary."""
 
 
