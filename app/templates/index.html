@@ -250,22 +250,39 @@
                 <h2>Settings</h2>
             </header>
             <form method="post" action="/settings">
-                <label>
-                    LLM Provider (for podcast mode)
-                    <select name="llm_provider">
-                        <option value="openai" {% if llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
-                        <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier available)</option>
-                    </select>
-                </label>
-                <label>
-                    OpenAI API Key
-                    <input type="password" name="openai_api_key" placeholder="{{ 'Key saved' if has_openai_key else 'sk-...' }}">
-                </label>
-                <label>
-                    Google Gemini API Key
-                    <input type="password" name="gemini_api_key" placeholder="{{ 'Key saved' if has_gemini_key else 'Get one free at aistudio.google.com' }}">
-                </label>
-                <small>Keys are stored locally on the server. Leave blank to keep the current key.</small>
+                <fieldset>
+                    <legend>Text-to-Speech</legend>
+                    <label>
+                        TTS Engine
+                        <select name="tts_engine">
+                            <option value="edge" {% if tts_engine == 'edge' %}selected{% endif %}>Edge TTS (free, slower)</option>
+                            <option value="openai" {% if tts_engine == 'openai' %}selected{% endif %}>OpenAI TTS (fast, requires API key)</option>
+                        </select>
+                    </label>
+                    <small>Changing the engine also changes available voices. Save and refresh to update the voice list.</small>
+                </fieldset>
+                <fieldset>
+                    <legend>Podcast Script Generation (LLM)</legend>
+                    <label>
+                        LLM Provider
+                        <select name="llm_provider">
+                            <option value="openai" {% if llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                            <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier available)</option>
+                        </select>
+                    </label>
+                </fieldset>
+                <fieldset>
+                    <legend>API Keys</legend>
+                    <label>
+                        OpenAI API Key <small>(used for TTS and/or LLM)</small>
+                        <input type="password" name="openai_api_key" placeholder="{{ 'Key saved' if has_openai_key else 'sk-...' }}">
+                    </label>
+                    <label>
+                        Google Gemini API Key
+                        <input type="password" name="gemini_api_key" placeholder="{{ 'Key saved' if has_gemini_key else 'Get one free at aistudio.google.com' }}">
+                    </label>
+                    <small>Keys are stored locally on the server. Leave blank to keep the current key.</small>
+                </fieldset>
                 <footer>
                     <button type="submit">Save</button>
                 </footer>

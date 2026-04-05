@@ -12,7 +12,7 @@ from .bookstack import BookStackClient
 from .database import Database
 from .feed import generate_podcast_feed
 from .settings import get_setting, has_podcast_key, set_setting
-from .tts import VOICE_OPTIONS, generate_audio, generate_podcast_audio
+from .tts import generate_audio, generate_podcast_audio, get_voice_options
 
 app = FastAPI(title="BookStack Podcast")
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -27,7 +27,8 @@ conversion_lock = asyncio.Lock()
 
 def _voice_label(voice_id: str) -> str:
     """Get short display name from a voice ID."""
-    for vid, vname in VOICE_OPTIONS:
+    from .tts import VOICE_OPTIONS, OPENAI_VOICE_OPTIONS
+    for vid, vname in VOICE_OPTIONS + OPENAI_VOICE_OPTIONS:
         if vid == voice_id:
             return vname
     return voice_id
@@ -79,13 +80,15 @@ async def index(request: Request):
     for ep in episodes:
         ep["voice_label"] = _voice_label(ep.get("voice", ""))
     grouped = _group_episodes(episodes)
+    tts_engine = get_setting("tts_engine", "edge")
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "episodes": episodes,
             "grouped": grouped,
-            "voices": VOICE_OPTIONS,
+            "voices": get_voice_options(),
+            "tts_engine": tts_engine,
             "has_pending": has_pending,
             "has_podcast": has_podcast_key(),
             "llm_provider": get_setting("llm_provider", "openai"),
@@ -207,10 +210,12 @@ async def process_conversion(
 
 @app.post("/settings")
 async def save_settings(
+    tts_engine: str = Form("edge"),
     llm_provider: str = Form("openai"),
     openai_api_key: str = Form(""),
     gemini_api_key: str = Form(""),
 ):
+    set_setting("tts_engine", tts_engine)
     set_setting("llm_provider", llm_provider)
     if openai_api_key:
         set_setting("openai_api_key", openai_api_key)
