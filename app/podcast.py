@@ -68,7 +68,7 @@ async def _generate_gemini(content: str, title: str) -> list[dict]:
         raise ValueError("Gemini API key not configured — set it in Settings")
 
     client = genai.Client(api_key=api_key)
-    model = get_setting("gemini_model", "gemini-2.0-flash")
+    model = get_setting("gemini_model", "gemini-2.5-flash")
     prompt = (
         f"{SYSTEM_PROMPT}\n\n"
         f"Create a podcast episode discussing this content:\n\n"
