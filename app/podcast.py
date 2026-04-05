@@ -1,0 +1,65 @@
+import os
+import re
+
+from openai import AsyncOpenAI
+
+SYSTEM_PROMPT = """You are writing a script for a two-person podcast. The hosts are discussing content from a documentation wiki.
+
+HOST_A is the lead host — warm, curious, great at asking the right questions and making complex topics approachable. They are the listener's stand-in.
+HOST_B is the expert co-host — deeply knowledgeable, explains things clearly with good analogies, occasionally adds surprising insights.
+
+Rules:
+- Write natural, conversational dialogue — not a lecture or interview
+- Both hosts should contribute substantively
+- Include genuine reactions ("Oh interesting...", "Right, that makes sense", "Wait, so...")
+- Cover all the important points from the source material
+- Use accessible language — avoid jargon unless you explain it
+- Start with a brief, energetic intro to hook the listener
+- End with a concise wrap-up
+- Aim for roughly 1500-2500 words of dialogue
+
+Format each line exactly as:
+HOST_A: [their words]
+HOST_B: [their words]
+
+No stage directions, sound effects, or meta-commentary."""
+
+
+async def generate_podcast_script(content: str, title: str) -> list[dict]:
+    """Generate a conversational podcast script from content using OpenAI."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is required for podcast mode")
+
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.chat.completions.create(
+        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"Create a podcast episode discussing this content:\n\nTitle: {title}\n\n{content}",
+            },
+        ],
+        max_tokens=4096,
+        temperature=0.8,
+    )
+
+    script_text = response.choices[0].message.content
+    segments = parse_script(script_text)
+    if not segments:
+        raise ValueError("Failed to generate podcast script")
+    return segments
+
+
+def parse_script(text: str) -> list[dict]:
+    """Parse HOST_A/HOST_B formatted script into segments."""
+    segments = []
+    for line in text.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        match = re.match(r"^HOST_([AB]):\s*(.+)$", line)
+        if match:
+            segments.append({"speaker": match.group(1), "text": match.group(2)})
+    return segments

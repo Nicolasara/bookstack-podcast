@@ -1,0 +1,12 @@
+services:
+  bookstack-podcast:
+    build: .
+    container_name: bookstack-podcast
+    ports:
+      - "8300:8000"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

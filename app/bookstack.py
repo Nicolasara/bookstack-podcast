@@ -1,0 +1,131 @@
+import os
+import re
+from urllib.parse import urlparse
+
+import httpx
+
+
+BOOKSTACK_URL = os.environ.get("BOOKSTACK_URL", "http://192.168.6.177:8084")
+BOOKSTACK_TOKEN_ID = os.environ.get("BOOKSTACK_TOKEN_ID", "")
+BOOKSTACK_TOKEN_SECRET = os.environ.get("BOOKSTACK_TOKEN_SECRET", "")
+
+
+class BookStackClient:
+    def __init__(self):
+        self.base_url = BOOKSTACK_URL.rstrip("/")
+        self.headers = {
+            "Authorization": f"Token {BOOKSTACK_TOKEN_ID}:{BOOKSTACK_TOKEN_SECRET}",
+        }
+
+    async def get_page(self, page_id: int) -> dict:
+        async with httpx.AsyncClient() as client:
+            # Metadata
+            meta_resp = await client.get(
+                f"{self.base_url}/api/pages/{page_id}",
+                headers=self.headers,
+            )
+            meta_resp.raise_for_status()
+            meta = meta_resp.json()
+
+            # Plaintext export (BookStack handles HTML-to-text)
+            text_resp = await client.get(
+                f"{self.base_url}/api/pages/{page_id}/export/plaintext",
+                headers=self.headers,
+            )
+            text_resp.raise_for_status()
+
+            text = clean_text_for_tts(text_resp.text, meta["name"])
+            return {
+                "title": meta["name"],
+                "description": meta.get("description", ""),
+                "text": text,
+            }
+
+    async def get_chapter(self, chapter_id: int) -> dict:
+        async with httpx.AsyncClient() as client:
+            meta_resp = await client.get(
+                f"{self.base_url}/api/chapters/{chapter_id}",
+                headers=self.headers,
+            )
+            meta_resp.raise_for_status()
+            meta = meta_resp.json()
+
+            text_resp = await client.get(
+                f"{self.base_url}/api/chapters/{chapter_id}/export/plaintext",
+                headers=self.headers,
+            )
+            text_resp.raise_for_status()
+
+            text = clean_text_for_tts(text_resp.text, meta["name"])
+            return {
+                "title": meta["name"],
+                "description": meta.get("description", ""),
+                "text": text,
+            }
+
+    async def resolve_query(self, query: str, content_type: str) -> int:
+        """Resolve a name, URL, or numeric ID to a BookStack page/chapter ID."""
+        query = query.strip()
+
+        # Direct numeric ID
+        if query.isdigit():
+            return int(query)
+
+        # URL — extract slug from the last path segment
+        search_term = query
+        if "://" in query or query.startswith("/"):
+            path_parts = [
+                p for p in urlparse(query).path.split("/") if p
+            ]
+            if path_parts:
+                search_term = path_parts[-1].replace("-", " ")
+
+        results = await self.search(search_term)
+        for r in results:
+            if r["type"] == content_type:
+                return r["id"]
+
+        raise ValueError(f"No {content_type} found matching '{query}'")
+
+    async def search(self, query: str) -> list:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.base_url}/api/search",
+                params={"query": query},
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = []
+            for item in data.get("data", []):
+                results.append(
+                    {
+                        "id": item["id"],
+                        "name": item["name"],
+                        "type": item["type"],
+                    }
+                )
+            return results
+
+
+def clean_text_for_tts(text: str, title: str = "") -> str:
+    """Clean up plaintext export for better TTS output."""
+    # Remove URLs (they sound terrible spoken aloud)
+    text = re.sub(r"https?://\S+", "", text)
+
+    # Remove email addresses
+    text = re.sub(r"\S+@\S+\.\S+", "", text)
+
+    # Remove markdown-style header underlines
+    text = re.sub(r"\n[=\-]{3,}\n", "\n\n", text)
+
+    # Normalize whitespace
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    text = text.strip()
+
+    if title:
+        text = f"{title}.\n\n{text}"
+
+    return text

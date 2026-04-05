@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookStack Podcast</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="alternate" type="application/rss+xml" title="BookStack Podcast" href="/feed.xml">
+    <style>
+        .search-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--pico-muted-border-color);
+        }
+        .search-result-info { flex: 1; }
+        .search-result-type {
+            font-size: 0.8em;
+            opacity: 0.6;
+            text-transform: capitalize;
+            margin-left: 0.5rem;
+        }
+        audio { max-width: 280px; height: 2rem; }
+        .actions { display: flex; gap: 0.5rem; align-items: center; }
+        .status-done { color: var(--pico-ins-color); }
+        .status-processing { color: var(--pico-mark-color); }
+        .status-error { color: var(--pico-del-color); }
+        .status-pending { opacity: 0.7; }
+        .convert-btn { margin: 0; padding: 0.25rem 0.75rem; }
+        .mode-badge {
+            font-size: 0.7em;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            background: var(--pico-muted-border-color);
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <hgroup>
+            <h1>BookStack Podcast</h1>
+            <p>Convert BookStack pages and chapters to audio.
+                <a href="/feed.xml">Subscribe to RSS Feed</a>
+            </p>
+        </hgroup>
+
+        <!-- Search + options -->
+        <section>
+            <h2>Find Content</h2>
+            <div class="grid">
+                <input type="search" id="search-input" placeholder="Search BookStack..."
+                       oninput="debounceSearch()" autocomplete="off">
+                <select id="mode-select" onchange="toggleMode()">
+                    <option value="narration">Narration</option>
+                    {% if has_openai %}
+                    <option value="podcast">Podcast (2 hosts)</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div id="voice-row">
+                <select id="voice-select">
+                    {% for voice_id, voice_name in voices %}
+                    <option value="{{ voice_id }}">{{ voice_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if not has_openai %}
+            <small>Set <code>OPENAI_API_KEY</code> to enable podcast mode (2-host discussion).</small>
+            {% endif %}
+            <div id="search-results"></div>
+        </section>
+
+        <!-- Manual convert -->
+        <details>
+            <summary>Convert by name or URL</summary>
+            <form method="post" action="/convert">
+                <div class="grid">
+                    <label>
+                        Type
+                        <select name="bookstack_type">
+                            <option value="page">Page</option>
+                            <option value="chapter">Chapter</option>
+                        </select>
+                    </label>
+                    <label>
+                        Page / Chapter
+                        <input type="text" name="bookstack_id" placeholder="Name, URL, or ID" required>
+                    </label>
+                    <label>
+                        Mode
+                        <select name="mode">
+                            <option value="narration">Narration</option>
+                            {% if has_openai %}
+                            <option value="podcast">Podcast</option>
+                            {% endif %}
+                        </select>
+                    </label>
+                    <label>
+                        Voice (narration only)
+                        <select name="voice">
+                            {% for voice_id, voice_name in voices %}
+                            <option value="{{ voice_id }}">{{ voice_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+                <button type="submit">Convert to Audio</button>
+            </form>
+        </details>
+
+        <!-- Episodes -->
+        <section>
+            <h2>Episodes</h2>
+            {% if episodes %}
+            <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Player</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ep in episodes %}
+                    <tr>
+                        <td>
+                            {{ ep.title or "(converting...)" }}
+                            <small class="search-result-type">{{ ep.bookstack_type }}</small>
+                            {% if ep.mode == "podcast" %}
+                            <span class="mode-badge">podcast</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ep.status == "done" %}
+                            <span class="status-done">Done</span>
+                            {% elif ep.status == "processing" %}
+                            <span class="status-processing" aria-busy="true">Processing</span>
+                            {% elif ep.status == "error" %}
+                            <span class="status-error" data-tooltip="{{ ep.error_message }}">Error</span>
+                            {% else %}
+                            <span class="status-pending">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ep.duration_seconds %}
+                            {{ "%.0f"|format(ep.duration_seconds // 60) }}:{{ "%02.0f"|format(ep.duration_seconds % 60) }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>
+                            {% if ep.status == "done" and ep.audio_filename %}
+                            <audio controls preload="none">
+                                <source src="/audio/{{ ep.audio_filename }}" type="audio/mpeg">
+                            </audio>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="actions">
+                                {% if ep.status == "done" and ep.audio_filename %}
+                                <a href="/audio/{{ ep.audio_filename }}" download
+                                   role="button" class="outline secondary convert-btn">DL</a>
+                                {% endif %}
+                                <button class="outline secondary convert-btn"
+                                        onclick="deleteEpisode({{ ep.id }})">Del</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </figure>
+            {% else %}
+            <p>No episodes yet. Search for content above to get started.</p>
+            {% endif %}
+        </section>
+    </main>
+
+    <script>
+    function toggleMode() {
+        const mode = document.getElementById('mode-select').value;
+        document.getElementById('voice-row').style.display = mode === 'narration' ? '' : 'none';
+    }
+
+    let searchTimeout;
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(doSearch, 300);
+    }
+
+    async function doSearch() {
+        const q = document.getElementById('search-input').value.trim();
+        const container = document.getElementById('search-results');
+        if (!q) { container.innerHTML = ''; return; }
+        try {
+            const resp = await fetch('/api/search?q=' + encodeURIComponent(q));
+            const results = await resp.json();
+            if (results.length === 0) {
+                container.innerHTML = '<p><em>No results found.</em></p>';
+                return;
+            }
+            const mode = document.getElementById('mode-select').value;
+            const voice = document.getElementById('voice-select').value;
+            container.innerHTML = results.map(r => {
+                const canConvert = r.type === 'page' || r.type === 'chapter';
+                return '<div class="search-result">' +
+                    '<div class="search-result-info">' +
+                        '<strong>' + escHtml(r.name) + '</strong>' +
+                        '<span class="search-result-type">' + r.type + '</span>' +
+                    '</div>' +
+                    (canConvert ? '<form method="post" action="/convert" style="margin:0">' +
+                        '<input type="hidden" name="bookstack_type" value="' + r.type + '">' +
+                        '<input type="hidden" name="bookstack_id" value="' + r.id + '">' +
+                        '<input type="hidden" name="voice" value="' + voice + '">' +
+                        '<input type="hidden" name="mode" value="' + mode + '">' +
+                        '<button type="submit" class="outline convert-btn">Convert</button>' +
+                    '</form>' : '') +
+                '</div>';
+            }).join('');
+        } catch (e) {
+            container.innerHTML = '<p><em>Search failed.</em></p>';
+        }
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    async function deleteEpisode(id) {
+        if (!confirm('Delete this episode?')) return;
+        await fetch('/api/episodes/' + id, { method: 'DELETE' });
+        location.reload();
+    }
+
+    {% if has_pending %}
+    setTimeout(function() { location.reload(); }, 5000);
+    {% endif %}
+    </script>
+</body>
+</html>
