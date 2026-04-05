@@ -61,20 +61,22 @@ async def _generate_openai(content: str, title: str) -> list[dict]:
 
 
 async def _generate_gemini(content: str, title: str) -> list[dict]:
-    import google.generativeai as genai
+    from google import genai
 
     api_key = get_setting("gemini_api_key")
     if not api_key:
         raise ValueError("Gemini API key not configured — set it in Settings")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(get_setting("gemini_model", "gemini-2.0-flash"))
+    client = genai.Client(api_key=api_key)
+    model = get_setting("gemini_model", "gemini-2.0-flash")
     prompt = (
         f"{SYSTEM_PROMPT}\n\n"
         f"Create a podcast episode discussing this content:\n\n"
         f"Title: {title}\n\n{content}"
     )
-    response = await model.generate_content_async(prompt)
+    response = await client.aio.models.generate_content(
+        model=model, contents=prompt
+    )
 
     segments = parse_script(response.text)
     if not segments:

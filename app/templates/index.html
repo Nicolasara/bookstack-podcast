@@ -98,6 +98,8 @@
                             <small class="search-result-type">{{ ep.bookstack_type }}</small>
                             {% if ep.mode == "podcast" %}
                             <span class="mode-badge">podcast</span>
+                            {% else %}
+                            <span class="mode-badge">{{ ep.voice_label }}</span>
                             {% endif %}
                         </td>
                         <td>

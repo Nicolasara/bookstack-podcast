@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Form, Request
@@ -23,6 +24,23 @@ bookstack = BookStackClient()
 conversion_lock = asyncio.Lock()
 
 
+def _voice_label(voice_id: str) -> str:
+    """Get short display name from a voice ID."""
+    for vid, vname in VOICE_OPTIONS:
+        if vid == voice_id:
+            return vname
+    return voice_id
+
+
+def _audio_filename(bookstack_type: str, bookstack_id: int, mode: str, voice: str) -> str:
+    """Generate a unique filename for an episode."""
+    if mode == "podcast":
+        return f"{bookstack_type}_{bookstack_id}_podcast.mp3"
+    # Extract short name: en-US-AndrewMultilingualNeural -> andrew
+    short = re.sub(r"(Multilingual)?Neural$", "", voice.split("-")[-1]).lower()
+    return f"{bookstack_type}_{bookstack_id}_{short}.mp3"
+
+
 @app.on_event("startup")
 async def startup():
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,6 +51,9 @@ async def startup():
 async def index(request: Request):
     episodes = await db.get_episodes()
     has_pending = any(e["status"] in ("pending", "processing") for e in episodes)
+    # Add display label for voice
+    for ep in episodes:
+        ep["voice_label"] = _voice_label(ep.get("voice", ""))
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -57,24 +78,29 @@ async def convert(
     mode: str = Form("narration"),
 ):
     resolved_id = await bookstack.resolve_query(bookstack_id, bookstack_type)
-    existing = await db.get_episode_by_source(bookstack_type, resolved_id)
+    effective_voice = "podcast" if mode == "podcast" else voice
+
+    existing = await db.get_episode_by_source(
+        bookstack_type, resolved_id, mode, effective_voice
+    )
 
     if existing and existing["status"] in ("pending", "processing"):
         return RedirectResponse(url="/", status_code=303)
 
     if existing:
-        # Re-convert: clean up old audio
+        # Re-convert same version: clean up old audio
         if existing["audio_filename"]:
             old_path = AUDIO_DIR / existing["audio_filename"]
             if old_path.exists():
                 old_path.unlink()
         await db.update_episode(
-            existing["id"], {"status": "pending", "error_message": None, "mode": mode}
+            existing["id"], {"status": "pending", "error_message": None}
         )
         episode_id = existing["id"]
     else:
-        episode_id = await db.create_episode(bookstack_type, resolved_id)
-        await db.update_episode(episode_id, {"mode": mode})
+        episode_id = await db.create_episode(
+            bookstack_type, resolved_id, mode, effective_voice
+        )
 
     background_tasks.add_task(
         process_conversion, episode_id, bookstack_type, resolved_id, voice, mode
@@ -102,7 +128,7 @@ async def process_conversion(
             if not text.strip():
                 raise ValueError("Page has no text content")
 
-            filename = f"{bookstack_type}_{bookstack_id}.mp3"
+            filename = _audio_filename(bookstack_type, bookstack_id, mode, voice)
             output_path = AUDIO_DIR / filename
 
             if mode == "podcast":
@@ -123,10 +149,8 @@ async def process_conversion(
                     "audio_filename": filename,
                     "duration_seconds": duration,
                     "file_size": file_size,
-                    "voice": voice if mode == "narration" else "podcast",
                     "status": "done",
                     "error_message": None,
-                    "mode": mode,
                 },
             )
         except Exception as e:
