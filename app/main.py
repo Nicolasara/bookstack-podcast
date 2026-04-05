@@ -113,20 +113,32 @@ async def convert(
     if existing and existing["status"] in ("pending", "processing"):
         return RedirectResponse(url="/", status_code=303)
 
+    # Fetch metadata now so the UI shows title/book immediately
+    meta = await bookstack.get_metadata(bookstack_type, resolved_id)
+
     if existing:
         # Re-convert same version: clean up old audio
         if existing["audio_filename"]:
             old_path = AUDIO_DIR / existing["audio_filename"]
             if old_path.exists():
                 old_path.unlink()
-        await db.update_episode(
-            existing["id"], {"status": "pending", "error_message": None}
-        )
+        await db.update_episode(existing["id"], {
+            "status": "pending",
+            "error_message": None,
+            "title": meta["title"],
+            "book_name": meta["book_name"],
+            "book_id": meta.get("book_id"),
+        })
         episode_id = existing["id"]
     else:
         episode_id = await db.create_episode(
             bookstack_type, resolved_id, mode, effective_voice
         )
+        await db.update_episode(episode_id, {
+            "title": meta["title"],
+            "book_name": meta["book_name"],
+            "book_id": meta.get("book_id"),
+        })
 
     background_tasks.add_task(
         process_conversion, episode_id, bookstack_type, resolved_id, voice, mode

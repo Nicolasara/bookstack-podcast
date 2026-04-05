@@ -85,6 +85,32 @@ class BookStackClient:
                 "book_name": book_name,
             }
 
+    async def get_metadata(self, content_type: str, content_id: int) -> dict:
+        """Lightweight fetch of just title and book name (no plaintext export)."""
+        async with httpx.AsyncClient() as client:
+            endpoint = "pages" if content_type == "page" else "chapters"
+            resp = await client.get(
+                f"{self.base_url}/api/{endpoint}/{content_id}",
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            meta = resp.json()
+
+            book_name = ""
+            if meta.get("book_id"):
+                book_resp = await client.get(
+                    f"{self.base_url}/api/books/{meta['book_id']}",
+                    headers=self.headers,
+                )
+                if book_resp.status_code == 200:
+                    book_name = book_resp.json().get("name", "")
+
+            return {
+                "title": meta["name"],
+                "book_id": meta.get("book_id"),
+                "book_name": book_name,
+            }
+
     async def resolve_query(self, query: str, content_type: str) -> int:
         """Resolve a name, URL, or numeric ID to a BookStack page/chapter ID."""
         query = query.strip()
