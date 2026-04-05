@@ -1,7 +1,6 @@
-import os
 import re
 
-from openai import AsyncOpenAI
+from .settings import get_setting
 
 SYSTEM_PROMPT = """You are writing a script for a two-person podcast. The hosts are discussing content from a documentation wiki.
 
@@ -26,14 +25,23 @@ No stage directions, sound effects, or meta-commentary."""
 
 
 async def generate_podcast_script(content: str, title: str) -> list[dict]:
-    """Generate a conversational podcast script from content using OpenAI."""
-    api_key = os.environ.get("OPENAI_API_KEY")
+    """Generate a conversational podcast script using the configured LLM."""
+    provider = get_setting("llm_provider", "openai")
+    if provider == "gemini":
+        return await _generate_gemini(content, title)
+    return await _generate_openai(content, title)
+
+
+async def _generate_openai(content: str, title: str) -> list[dict]:
+    from openai import AsyncOpenAI
+
+    api_key = get_setting("openai_api_key")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is required for podcast mode")
+        raise ValueError("OpenAI API key not configured — set it in Settings")
 
     client = AsyncOpenAI(api_key=api_key)
     response = await client.chat.completions.create(
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        model=get_setting("openai_model", "gpt-4o-mini"),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -47,6 +55,28 @@ async def generate_podcast_script(content: str, title: str) -> list[dict]:
 
     script_text = response.choices[0].message.content
     segments = parse_script(script_text)
+    if not segments:
+        raise ValueError("Failed to generate podcast script")
+    return segments
+
+
+async def _generate_gemini(content: str, title: str) -> list[dict]:
+    import google.generativeai as genai
+
+    api_key = get_setting("gemini_api_key")
+    if not api_key:
+        raise ValueError("Gemini API key not configured — set it in Settings")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(get_setting("gemini_model", "gemini-2.0-flash"))
+    prompt = (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Create a podcast episode discussing this content:\n\n"
+        f"Title: {title}\n\n{content}"
+    )
+    response = await model.generate_content_async(prompt)
+
+    segments = parse_script(response.text)
     if not segments:
         raise ValueError("Failed to generate podcast script")
     return segments

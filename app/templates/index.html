@@ -44,7 +44,8 @@
         <hgroup>
             <h1>BookStack Podcast</h1>
             <p>Convert BookStack pages and chapters to audio.
-                <a href="/feed.xml">Subscribe to RSS Feed</a>
+                <a href="/feed.xml">Subscribe to RSS Feed</a> |
+                <a href="#" onclick="document.getElementById('settings-dialog').showModal(); return false;">Settings</a>
             </p>
         </hgroup>
 
@@ -57,7 +58,7 @@
             <div id="settings-row" class="grid">
                 <select id="mode-select" onchange="toggleMode()">
                     <option value="narration">Narration (single voice)</option>
-                    {% if has_openai %}
+                    {% if has_podcast %}
                     <option value="podcast">Podcast (2-host discussion)</option>
                     {% endif %}
                 </select>
@@ -67,8 +68,8 @@
                     {% endfor %}
                 </select>
             </div>
-            {% if not has_openai %}
-            <small>Set <code>OPENAI_API_KEY</code> to enable podcast mode.</small>
+            {% if not has_podcast %}
+            <small>Configure an API key in Settings below to enable podcast mode.</small>
             {% endif %}
 
             <div id="search-results"></div>
@@ -209,5 +210,36 @@
     setTimeout(function() { location.reload(); }, 5000);
     {% endif %}
     </script>
+
+    <!-- Settings -->
+    <dialog id="settings-dialog">
+        <article>
+            <header>
+                <button aria-label="Close" rel="prev" onclick="document.getElementById('settings-dialog').close()"></button>
+                <h2>Settings</h2>
+            </header>
+            <form method="post" action="/settings">
+                <label>
+                    LLM Provider (for podcast mode)
+                    <select name="llm_provider">
+                        <option value="openai" {% if llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                        <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier available)</option>
+                    </select>
+                </label>
+                <label>
+                    OpenAI API Key
+                    <input type="password" name="openai_api_key" placeholder="{{ 'Key saved' if has_openai_key else 'sk-...' }}">
+                </label>
+                <label>
+                    Google Gemini API Key
+                    <input type="password" name="gemini_api_key" placeholder="{{ 'Key saved' if has_gemini_key else 'Get one free at aistudio.google.com' }}">
+                </label>
+                <small>Keys are stored locally on the server. Leave blank to keep the current key.</small>
+                <footer>
+                    <button type="submit">Save</button>
+                </footer>
+            </form>
+        </article>
+    </dialog>
 </body>
 </html>

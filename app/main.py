@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from .bookstack import BookStackClient
 from .database import Database
 from .feed import generate_podcast_feed
+from .settings import get_setting, has_podcast_key, set_setting
 from .tts import VOICE_OPTIONS, generate_audio, generate_podcast_audio
 
 app = FastAPI(title="BookStack Podcast")
@@ -32,7 +33,6 @@ async def startup():
 async def index(request: Request):
     episodes = await db.get_episodes()
     has_pending = any(e["status"] in ("pending", "processing") for e in episodes)
-    has_openai = bool(os.environ.get("OPENAI_API_KEY"))
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -40,7 +40,10 @@ async def index(request: Request):
             "episodes": episodes,
             "voices": VOICE_OPTIONS,
             "has_pending": has_pending,
-            "has_openai": has_openai,
+            "has_podcast": has_podcast_key(),
+            "llm_provider": get_setting("llm_provider", "openai"),
+            "has_openai_key": bool(get_setting("openai_api_key")),
+            "has_gemini_key": bool(get_setting("gemini_api_key")),
         },
     )
 
@@ -128,6 +131,20 @@ async def process_conversion(
             )
         except Exception as e:
             await db.update_status(episode_id, "error", str(e))
+
+
+@app.post("/settings")
+async def save_settings(
+    llm_provider: str = Form("openai"),
+    openai_api_key: str = Form(""),
+    gemini_api_key: str = Form(""),
+):
+    set_setting("llm_provider", llm_provider)
+    if openai_api_key:
+        set_setting("openai_api_key", openai_api_key)
+    if gemini_api_key:
+        set_setting("gemini_api_key", gemini_api_key)
+    return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/api/search")
