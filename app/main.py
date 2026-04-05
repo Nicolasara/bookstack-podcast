@@ -173,9 +173,27 @@ async def save_settings(
 
 @app.get("/api/search")
 async def search(q: str = ""):
-    if not q.strip():
+    q = q.strip()
+    if not q:
         return []
+    # If input looks like a URL, extract the slug for search
+    if "://" in q or q.startswith("/"):
+        from urllib.parse import urlparse
+
+        path_parts = [p for p in urlparse(q).path.split("/") if p]
+        if path_parts:
+            q = path_parts[-1].replace("-", " ")
     return await bookstack.search(q)
+
+
+@app.get("/api/episodes/status")
+async def episodes_status():
+    """Lightweight endpoint for polling episode status changes."""
+    episodes = await db.get_episodes()
+    return [
+        {"id": e["id"], "status": e["status"], "title": e["title"]}
+        for e in episodes
+    ]
 
 
 @app.delete("/api/episodes/{episode_id}")

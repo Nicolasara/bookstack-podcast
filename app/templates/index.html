@@ -215,7 +215,29 @@
     }
 
     {% if has_pending %}
-    setTimeout(function() { location.reload(); }, 5000);
+    // Poll for status changes without wiping the page
+    (function() {
+        const initial = {{ episodes | tojson }};
+        const statusMap = {};
+        initial.forEach(e => statusMap[e.id] = e.status);
+
+        async function pollStatus() {
+            try {
+                const resp = await fetch('/api/episodes/status');
+                const episodes = await resp.json();
+                let changed = false;
+                episodes.forEach(e => {
+                    if (statusMap[e.id] && statusMap[e.id] !== e.status) changed = true;
+                    if (!statusMap[e.id]) changed = true;
+                });
+                if (changed) location.reload();
+                else setTimeout(pollStatus, 3000);
+            } catch (e) {
+                setTimeout(pollStatus, 5000);
+            }
+        }
+        setTimeout(pollStatus, 3000);
+    })();
     {% endif %}
     </script>
 
