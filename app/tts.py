@@ -147,13 +147,18 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
     pause = AudioSegment.silent(duration=400)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # 3000 RPM / 250K TPM — a podcast uses ~63 req / ~10K chars, fire all at once
-        tasks = []
-        for i, seg in enumerate(segments):
-            voice = voices.get(seg["speaker"], voices["A"])
-            tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
-            tasks.append(_openai_tts_to_file(client, model, voice, seg["text"], tmp_path))
-        await asyncio.gather(*tasks)
+        # gpt-4o-mini-tts-2025-03-20: 3000 RPM / 250K TPM
+        # Batch dynamically so each batch stays under TPM with margin
+        tpm_limit = 200_000  # 80% of 250K for safety
+        batches = _batch_by_tokens(segments, tpm_limit)
+
+        for batch in batches:
+            tasks = []
+            for i, seg in batch:
+                voice = voices.get(seg["speaker"], voices["A"])
+                tmp_path = os.path.join(tmpdir, f"seg_{i}.mp3")
+                tasks.append(_openai_tts_to_file(client, model, voice, seg["text"], tmp_path))
+            await asyncio.gather(*tasks)
 
         # Concatenate in order
         combined = AudioSegment.empty()
@@ -163,6 +168,24 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
 
     combined.export(output_path, format="mp3")
     return MP3(output_path).info.length
+
+
+def _batch_by_tokens(segments: list[dict], tpm_limit: int) -> list[list[tuple]]:
+    """Split indexed segments into batches that fit under the TPM limit."""
+    batches = []
+    current_batch = []
+    current_chars = 0
+    for i, seg in enumerate(segments):
+        seg_chars = len(seg["text"])
+        if current_batch and current_chars + seg_chars > tpm_limit:
+            batches.append(current_batch)
+            current_batch = []
+            current_chars = 0
+        current_batch.append((i, seg))
+        current_chars += seg_chars
+    if current_batch:
+        batches.append(current_batch)
+    return batches
 
 
 def _chunk_text(text: str, max_chars: int) -> list[str]:
