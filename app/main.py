@@ -75,7 +75,7 @@ async def startup():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, q: str = ""):
     episodes = await db.get_episodes()
     has_pending = any(e["status"] in ("pending", "processing") for e in episodes)
     for ep in episodes:
@@ -99,6 +99,7 @@ async def index(request: Request):
             "auto_convert_shelves": get_setting("auto_convert_shelves", ""),
             "auto_convert_mode": get_setting("auto_convert_mode", "podcast"),
             "auto_convert_interval": get_setting("auto_convert_interval", "30"),
+            "initial_query": q,
         },
     )
 

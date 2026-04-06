@@ -216,6 +216,12 @@
         location.reload();
     }
 
+    // Auto-search from ?q= deep link
+    {% if initial_query %}
+    document.getElementById('search-input').value = {{ initial_query | tojson }};
+    doSearch();
+    {% endif %}
+
     // Load shelves into picker when settings dialog opens
     document.getElementById('settings-dialog').addEventListener('open', loadShelves);
     document.getElementById('settings-dialog').addEventListener('click', function(e) {
