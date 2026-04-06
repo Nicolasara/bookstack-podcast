@@ -1,5 +1,5 @@
 {
-    "name": "Podcast Audio",
+    "name": "Podcast",
     "version": "1.0.0",
-    "description": "Adds a 'Listen' button to BookStack pages that links to the BookStack Podcast service for audio conversion."
+    "description": "Adds inline audio podcast generation and playback to BookStack pages. Requires a BookStack Podcast service. Set PODCAST_SERVICE_URL in your .env."
 }
