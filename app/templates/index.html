@@ -1,201 +1,1217 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BookStack Podcast</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="alternate" type="application/rss+xml" title="BookStack Podcast" href="/feed.xml">
     <style>
+        /* ── Reset & base ─────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-base: #0d0f12;
+            --bg-surface: #13161b;
+            --bg-elevated: #1a1e26;
+            --bg-hover: #1f2937;
+            --bg-input: #0f1117;
+
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --text-faint: #475569;
+
+            --border: #1e293b;
+            --border-subtle: #161b22;
+
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --accent-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+
+            --sidebar-w: 200px;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 10px;
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── App layout ───────────────────────────────────── */
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ──────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-width: var(--sidebar-w);
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-logo {
+            padding: 20px 16px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+
+        .nav-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .nav-item:first-child {
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-blue);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .nav-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        .nav-item.active svg { opacity: 1; }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .rss-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-decoration: none;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .rss-btn:hover {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .rss-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+        /* ── Main content ─────────────────────────────────── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* ── Typography ───────────────────────────────────── */
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        .label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        /* ── Buttons ──────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+
+        .btn-danger { color: var(--accent-red); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.12); border-color: var(--accent-red); }
+
+        .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .icon-btn.danger:hover { background: rgba(239, 68, 68, 0.12); color: var(--accent-red); }
+        .icon-btn svg { width: 15px; height: 15px; }
+
+        /* ── Search view ──────────────────────────────────── */
+        .search-topbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-input-wrap {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input-wrap svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 15px;
+            height: 15px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 9px 12px 9px 36px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .search-input::placeholder { color: var(--text-faint); }
+        .search-input:focus { border-color: var(--accent-blue); }
+
+        .mode-toggle {
+            display: flex;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .mode-btn {
+            padding: 8px 14px;
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 500;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .mode-btn:not(:last-child) { border-right: 1px solid var(--border); }
+        .mode-btn:hover { color: var(--text-secondary); }
+
+        .mode-btn.active {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .voice-select {
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            max-width: 220px;
+        }
+
+        .voice-select:focus { border-color: var(--accent-blue); }
+
+        .search-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Search results */
         .search-result {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--pico-muted-border-color);
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 6px;
+            transition: border-color 0.15s;
         }
-        .search-result-info { flex: 1; }
-        .search-result-type {
-            font-size: 0.8em;
-            opacity: 0.6;
-            text-transform: capitalize;
-            margin-left: 0.5rem;
+
+        .search-result:hover { border-color: var(--border); background: var(--bg-elevated); }
+
+        .search-result-info { flex: 1; min-width: 0; }
+
+        .search-result-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 13px;
         }
-        audio { max-width: 280px; height: 2rem; }
-        .actions { display: flex; gap: 0.5rem; align-items: center; }
-        .status-done { color: var(--pico-ins-color); }
-        .status-processing { color: var(--pico-mark-color); }
-        .status-error { color: var(--pico-del-color); }
-        .status-pending { opacity: 0.7; }
-        .convert-btn { margin: 0; padding: 0.25rem 0.75rem; }
-        .btn-delete { color: var(--pico-del-color); border-color: var(--pico-del-color); }
-        .btn-delete:hover { background: var(--pico-del-color); color: var(--pico-background-color); }
-        .mode-badge {
-            font-size: 0.7em;
-            padding: 0.1rem 0.4rem;
-            border-radius: 4px;
-            background: var(--pico-muted-border-color);
-            margin-left: 0.5rem;
-            vertical-align: middle;
+
+        .search-result-meta {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
         }
-        #settings-row { margin-bottom: 1rem; }
-        .page-card { margin: 0 0 0.25rem 0; padding: 0.5rem 1rem; }
-        .page-card header { padding: 0; margin: 0 0 0.25rem 0; }
+
+        .type-pill {
+            display: inline-block;
+            padding: 1px 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            border-radius: var(--radius-sm);
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--accent-blue);
+            letter-spacing: 0.04em;
+        }
+
+        .convert-form { margin: 0; }
+
+        .btn-convert {
+            padding: 6px 16px;
+            background: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
+            border-radius: var(--radius-md);
+            color: #fff;
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-convert:hover { background: #2563eb; }
+
+        /* ── Episode Library ──────────────────────────────── */
+        .library-empty {
+            text-align: center;
+            padding: 48px 0;
+            color: var(--text-muted);
+        }
+
+        .library-empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+        .book-group {
+            margin-bottom: 12px;
+        }
+
+        .book-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .book-header:hover { background: var(--bg-elevated); }
+
+        .book-rail {
+            width: 3px;
+            height: 20px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .book-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: var(--text-muted);
+        }
+
+        .book-name {
+            font-weight: 600;
+            font-size: 13px;
+            flex: 1;
+        }
+
+        .count-pill {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 8px;
+            background: var(--bg-base);
+            border-radius: 10px;
+            color: var(--text-muted);
+        }
+
+        .chevron {
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .book-group.collapsed .chevron { transform: rotate(-90deg); }
+        .book-group.collapsed .book-body { display: none; }
+
+        .book-body {
+            position: relative;
+            margin-left: 22px;
+            padding-left: 18px;
+            padding-top: 6px;
+        }
+
+        .book-body::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            border-radius: 1px;
+            opacity: 0.3;
+        }
+
+        .episode-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 6px;
+            overflow: hidden;
+        }
+
+        .episode-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .episode-header .type-pill {
+            font-size: 9px;
+            padding: 1px 5px;
+        }
+
+        /* ── Rendering rows ───────────────────────────────── */
         .rendering-row {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.4rem 0;
-            border-top: 1px solid var(--pico-muted-border-color);
+            gap: 10px;
+            padding: 7px 12px;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 12px;
         }
-        .rendering-row .mode-badge { min-width: 6rem; text-align: center; margin: 0; flex-shrink: 0; }
-        .rendering-row .duration { min-width: 3rem; opacity: 0.7; font-size: 0.9em; flex-shrink: 0; }
-        .rendering-row audio { flex: 1; min-width: 120px; }
-        .rendering-row .actions { margin-left: auto; flex-shrink: 0; }
+
+        /* Status dot */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.done { background: var(--accent-green); }
+        .status-dot.error { background: var(--accent-red); }
+        .status-dot.pending { background: var(--text-faint); }
+
+        .status-dot.processing {
+            background: var(--accent-amber);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+        }
+
+        .voice-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .mode-badge {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+
+        .mode-badge.podcast {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--accent-purple);
+        }
+
+        .mode-badge.narration {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--accent-green);
+        }
+
+        .duration {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            min-width: 36px;
+            white-space: nowrap;
+        }
+
+        .error-msg {
+            font-size: 11px;
+            color: var(--accent-red);
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .processing-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-amber);
+            white-space: nowrap;
+        }
+
+        .rendering-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        /* ── Custom audio player ──────────────────────────── */
+        .audio-player {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            max-width: 300px;
+        }
+
+        .play-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent-blue);
+            color: #fff;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        .play-btn:hover { background: #2563eb; }
+        .play-btn svg { width: 12px; height: 12px; }
+
+        .progress-wrap {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-base);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+            min-width: 60px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-blue);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .time-display {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            min-width: 32px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* Processing progress bar */
+        .processing-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-base);
+            border-radius: 2px;
+            overflow: hidden;
+            min-width: 60px;
+            max-width: 200px;
+        }
+
+        .processing-bar-fill {
+            height: 100%;
+            width: 30%;
+            background: var(--accent-amber);
+            border-radius: 2px;
+            animation: processing-slide 1.5s ease-in-out infinite;
+        }
+
+        @keyframes processing-slide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* ── Settings view ────────────────────────────────── */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .settings-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .settings-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .settings-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+        }
+
+        .field-group {
+            margin-bottom: 14px;
+        }
+
+        .field-group:last-child { margin-bottom: 0; }
+
+        .field-label {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .field-input, .field-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .field-input:focus, .field-select:focus { border-color: var(--accent-blue); }
+        .field-input::placeholder { color: var(--text-faint); }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Toggle switch */
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .toggle-track {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: background 0.2s, border-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 14px;
+            height: 14px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .toggle-input { display: none; }
+
+        .toggle-input:checked + .toggle-track {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .toggle-input:checked + .toggle-track::after {
+            transform: translateX(16px);
+            background: #fff;
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        /* Shelf checklist */
+        .shelf-checklist {
+            max-height: 160px;
+            overflow-y: auto;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 4px 0;
+        }
+
+        .shelf-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .shelf-check-item:hover { background: var(--bg-elevated); }
+
+        .shelf-check-item input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .shelf-check-item span {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .settings-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .settings-save-btn {
+            padding: 10px 28px;
+            background: var(--accent-blue);
+            border: none;
+            border-radius: var(--radius-md);
+            color: #fff;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .settings-save-btn:hover { background: #2563eb; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 10px 20px;
+            background: var(--accent-green);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Inline settings grid helper */
+        .settings-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
     </style>
 </head>
 <body>
-    <main class="container">
-        <hgroup>
-            <h1>BookStack Podcast</h1>
-            <p>Convert BookStack pages and chapters to audio.
-                <a href="/feed.xml">Subscribe to RSS Feed</a> |
-                <a href="#" onclick="document.getElementById('settings-dialog').showModal(); return false;">Settings</a>
-            </p>
-        </hgroup>
-
-        <!-- Convert -->
-        <section>
-            <h2>Find Content</h2>
-            <input type="search" id="search-input" placeholder="Search BookStack by name or paste a URL..."
-                   oninput="debounceSearch()" autocomplete="off">
-
-            <div id="settings-row" class="grid">
-                <select id="mode-select" onchange="toggleMode()">
-                    {% if has_podcast %}
-                    <option value="podcast">Podcast (2-host discussion)</option>
-                    {% endif %}
-                    <option value="narration">Narration (single voice)</option>
-                </select>
-                <select id="voice-select">
-                    {% for voice_id, voice_name in voices %}
-                    <option value="{{ voice_id }}">{{ voice_name }}</option>
-                    {% endfor %}
-                </select>
+    <div class="app-layout">
+        <!-- ── Sidebar ──────────────────────────────────── -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">BookStack Podcast</div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" data-view="search" onclick="switchView('search')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Search
+                </a>
+                <a class="nav-item" data-view="library" onclick="switchView('library')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                    Library
+                </a>
+                <a class="nav-item" data-view="settings" onclick="switchView('settings')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="/feed.xml" class="rss-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+                    RSS Feed
+                </a>
             </div>
-            {% if not has_podcast %}
-            <small>Configure an API key in Settings below to enable podcast mode.</small>
-            {% endif %}
+        </aside>
 
-            <div id="search-results"></div>
-        </section>
+        <!-- ── Main content ─────────────────────────────── -->
+        <main class="content">
 
-        <!-- Episodes -->
-        <section>
-            <h2>Episodes</h2>
-            {% if grouped %}
-            {% for book in grouped %}
-            <details open>
-                <summary><strong>{{ book.book_name }}</strong></summary>
-                {% for page in book.pages %}
-                <article class="page-card">
-                    <header><strong>{{ page.title }}</strong></header>
-                    {% for ep in page.renderings %}
-                    <div class="rendering-row">
-                        <span class="mode-badge">
-                            {% if ep.mode == "podcast" %}Podcast{% else %}{{ ep.voice_label }}{% endif %}
-                        </span>
-                        <span>
-                            {% if ep.status == "done" %}
-                            <span class="status-done">Done</span>
-                            {% elif ep.status == "processing" %}
-                            <span class="status-processing" aria-busy="true">Processing</span>
-                            {% elif ep.status == "error" %}
-                            <span class="status-error" data-tooltip="{{ ep.error_message }}">Error</span>
-                            {% else %}
-                            <span class="status-pending">Pending</span>
-                            {% endif %}
-                        </span>
-                        <span class="duration">
-                            {% if ep.duration_seconds %}
-                            {{ "%.0f"|format(ep.duration_seconds // 60) }}:{{ "%02.0f"|format(ep.duration_seconds % 60) }}
-                            {% endif %}
-                        </span>
-                        {% if ep.status == "done" and ep.audio_filename %}
-                        <audio controls preload="none">
-                            <source src="/audio/{{ ep.audio_filename }}" type="audio/mpeg">
-                        </audio>
+            <!-- ── Search View ──────────────────────────── -->
+            <div id="view-search" class="view active">
+                <div class="search-topbar">
+                    <div class="search-input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="search" class="search-input" id="search-input"
+                               placeholder="Search BookStack by name or paste a URL..."
+                               oninput="debounceSearch()" autocomplete="off">
+                    </div>
+                    <input type="hidden" id="mode-select" value="{% if has_podcast %}podcast{% else %}narration{% endif %}">
+                    <div class="mode-toggle">
+                        {% if has_podcast %}
+                        <button type="button" class="mode-btn active" data-mode="podcast" onclick="setMode('podcast')">Podcast</button>
                         {% endif %}
-                        <div class="actions">
-                            {% if ep.status == "done" and ep.audio_filename %}
-                            <a href="/audio/{{ ep.audio_filename }}" download
-                               role="button" class="outline secondary convert-btn" title="Download">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            </a>
-                            {% endif %}
-                            <button class="outline convert-btn btn-delete" title="Delete"
-                                    onclick="deleteEpisode({{ ep.id }})">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                            </button>
+                        <button type="button" class="mode-btn {% if not has_podcast %}active{% endif %}" data-mode="narration" onclick="setMode('narration')">Narration</button>
+                    </div>
+                    <select id="voice-select" class="voice-select">
+                        {% for voice_id, voice_name in voices %}
+                        <option value="{{ voice_id }}">{{ voice_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if not has_podcast %}
+                <p class="search-hint">Configure an API key in Settings to enable podcast mode.</p>
+                {% endif %}
+                <div id="search-results"></div>
+            </div>
+
+            <!-- ── Library View ─────────────────────────── -->
+            <div id="view-library" class="view">
+                <h2>Episode Library</h2>
+                {% if grouped %}
+                {% set rail_colors = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#06b6d4'] %}
+                {% for book in grouped %}
+                {% set color = rail_colors[loop.index0 % rail_colors|length] %}
+                <div class="book-group" data-color="{{ color }}">
+                    <div class="book-header" onclick="toggleBook(this)">
+                        <div class="book-rail" style="background:{{ color }}"></div>
+                        <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        <span class="book-name">{{ book.book_name }}</span>
+                        <span class="count-pill">{{ book.pages | length }} episode{{ 's' if book.pages | length != 1 }}</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="book-body" style="--rail-color: {{ color }}">
+                        <style>.book-group[data-color="{{ color }}"] .book-body::before { background: {{ color }}; }</style>
+                        {% for page in book.pages %}
+                        <div class="episode-card">
+                            <div class="episode-header">
+                                <span class="type-pill">EPISODE</span>
+                                {{ page.title }}
+                            </div>
+                            {% for ep in page.renderings %}
+                            <div class="rendering-row">
+                                <span class="status-dot {{ ep.status }}"></span>
+                                <span class="voice-label">
+                                    {% if ep.mode == "podcast" %}Podcast{% else %}{{ ep.voice_label }}{% endif %}
+                                </span>
+                                <span class="mode-badge {{ ep.mode }}">
+                                    {{ ep.mode }}
+                                </span>
+                                {% if ep.status == "done" %}
+                                <span class="duration">
+                                    {% if ep.duration_seconds %}
+                                    {{ "%.0f"|format(ep.duration_seconds // 60) }}:{{ "%02.0f"|format(ep.duration_seconds % 60) }}
+                                    {% endif %}
+                                </span>
+                                {% if ep.audio_filename %}
+                                <div class="audio-player" data-src="/audio/{{ ep.audio_filename }}">
+                                    <button class="play-btn" onclick="togglePlay(this)" title="Play/Pause">
+                                        <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                                        <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                                    </button>
+                                    <div class="progress-wrap" onclick="seekAudio(event, this)">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="time-display">0:00</span>
+                                </div>
+                                {% endif %}
+                                <div class="rendering-actions">
+                                    {% if ep.audio_filename %}
+                                    <a href="/audio/{{ ep.audio_filename }}" download class="icon-btn" title="Download">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    </a>
+                                    {% endif %}
+                                    <button class="icon-btn danger" title="Delete" onclick="deleteEpisode({{ ep.id }})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                    </button>
+                                </div>
+
+                                {% elif ep.status == "processing" %}
+                                <span class="processing-label">Processing…</span>
+                                <div class="processing-bar"><div class="processing-bar-fill"></div></div>
+                                <div class="rendering-actions">
+                                    <button class="icon-btn danger" title="Delete" onclick="deleteEpisode({{ ep.id }})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                    </button>
+                                </div>
+
+                                {% elif ep.status == "error" %}
+                                <span class="error-msg" title="{{ ep.error_message }}">{{ ep.error_message }}</span>
+                                <div class="rendering-actions">
+                                    <form method="post" action="/convert" class="convert-form"
+                                          onsubmit="this.querySelector('[name=voice]').value='{{ ep.voice }}'; this.querySelector('[name=mode]').value='{{ ep.mode }}';">
+                                        <input type="hidden" name="bookstack_type" value="{{ ep.bookstack_type }}">
+                                        <input type="hidden" name="bookstack_id" value="{{ ep.bookstack_id }}">
+                                        <input type="hidden" name="voice" value="{{ ep.voice }}">
+                                        <input type="hidden" name="mode" value="{{ ep.mode }}">
+                                        <button type="submit" class="btn btn-sm">Retry</button>
+                                    </form>
+                                    <button class="icon-btn danger" title="Delete" onclick="deleteEpisode({{ ep.id }})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                    </button>
+                                </div>
+
+                                {% else %}{# pending #}
+                                <span class="processing-label" style="color: var(--text-muted);">Pending…</span>
+                                <div class="rendering-actions">
+                                    <button class="icon-btn danger" title="Delete" onclick="deleteEpisode({{ ep.id }})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="library-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                    <p>No episodes yet. Search for content to get started.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ── Settings View ────────────────────────── -->
+            <div id="view-settings" class="view">
+                <h2>Settings</h2>
+                <form id="settings-form" method="post" action="/settings">
+                    <div class="settings-grid">
+                        <!-- TTS Engine -->
+                        <div class="settings-card">
+                            <h3>Text-to-Speech</h3>
+                            <div class="field-group">
+                                <label class="field-label">TTS Engine</label>
+                                <select name="tts_engine" class="field-select">
+                                    <option value="edge" {% if tts_engine == 'edge' %}selected{% endif %}>Edge TTS (free, slower)</option>
+                                    <option value="openai" {% if tts_engine == 'openai' %}selected{% endif %}>OpenAI TTS (fast, requires key)</option>
+                                </select>
+                            </div>
+                            <p class="field-hint">Changing the engine changes available voices. Save and refresh to update.</p>
+                        </div>
+
+                        <!-- LLM Provider -->
+                        <div class="settings-card">
+                            <h3>Podcast Script (LLM)</h3>
+                            <div class="field-group">
+                                <label class="field-label">LLM Provider</label>
+                                <select name="llm_provider" class="field-select">
+                                    <option value="openai" {% if llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                                    <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- API Keys -->
+                        <div class="settings-card full-width">
+                            <h3>API Keys</h3>
+                            <div class="settings-row">
+                                <div class="field-group">
+                                    <label class="field-label">OpenAI API Key</label>
+                                    <input type="password" name="openai_api_key" class="field-input"
+                                           placeholder="{{ 'Key saved ••••••' if has_openai_key else 'sk-...' }}">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Google Gemini API Key</label>
+                                    <input type="password" name="gemini_api_key" class="field-input"
+                                           placeholder="{{ 'Key saved ••••••' if has_gemini_key else 'Get one free at aistudio.google.com' }}">
+                                </div>
+                            </div>
+                            <p class="field-hint">Keys are stored locally on the server. Leave blank to keep current key.</p>
+                        </div>
+
+                        <!-- Auto-convert -->
+                        <div class="settings-card full-width">
+                            <h3>Auto-Convert</h3>
+                            <div class="field-group">
+                                <label class="toggle-wrap">
+                                    <input type="checkbox" name="auto_convert_enabled" value="true"
+                                           class="toggle-input" id="auto-convert-toggle"
+                                           {% if auto_convert_enabled == 'true' %}checked{% endif %}>
+                                    <span class="toggle-track"></span>
+                                    <span class="toggle-label">Enable auto-convert</span>
+                                </label>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Watched Shelves</label>
+                                <div class="shelf-checklist" id="shelf-picker"></div>
+                                <input type="hidden" name="auto_convert_shelves" id="auto-convert-shelves"
+                                       value="{{ auto_convert_shelves }}">
+                                {% if auto_convert_shelves %}
+                                <p class="field-hint" id="shelf-current">Current: shelf IDs {{ auto_convert_shelves }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="settings-row">
+                                <div class="field-group">
+                                    <label class="field-label">Mode</label>
+                                    <select name="auto_convert_mode" class="field-select">
+                                        <option value="podcast" {% if auto_convert_mode == 'podcast' %}selected{% endif %}>Podcast</option>
+                                        <option value="narration" {% if auto_convert_mode == 'narration' %}selected{% endif %}>Narration</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Check interval (minutes)</label>
+                                    <input type="number" name="auto_convert_interval" class="field-input"
+                                           min="5" max="1440" value="{{ auto_convert_interval }}">
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    {% endfor %}
-                </article>
-                {% endfor %}
-            </details>
-            {% endfor %}
-            {% else %}
-            <p>No episodes yet. Search for content above to get started.</p>
-            {% endif %}
-        </section>
-    </main>
+                    <div class="settings-actions">
+                        <button type="submit" class="settings-save-btn">Save Settings</button>
+                    </div>
+                </form>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
 
     <script>
+    /* ── View navigation ────────────────────────────────── */
+    function switchView(name) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('view-' + name).classList.add('active');
+        document.querySelector('.nav-item[data-view="' + name + '"]').classList.add('active');
+        localStorage.setItem('bsp-view', name);
+    }
+
+    // Restore last view
+    (function() {
+        var saved = localStorage.getItem('bsp-view');
+        if (saved && document.getElementById('view-' + saved)) {
+            switchView(saved);
+        }
+    })();
+
+    /* ── Mode toggle ────────────────────────────────────── */
+    function setMode(mode) {
+        document.getElementById('mode-select').value = mode;
+        document.querySelectorAll('.mode-btn').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.mode === mode);
+        });
+        toggleMode();
+    }
+
     function toggleMode() {
-        const mode = document.getElementById('mode-select').value;
+        var mode = document.getElementById('mode-select').value;
         document.getElementById('voice-select').style.display = mode === 'narration' ? '' : 'none';
     }
     toggleMode();
 
-    let searchTimeout;
+    /* ── Search ─────────────────────────────────────────── */
+    var searchTimeout;
     function debounceSearch() {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(doSearch, 300);
     }
 
     async function doSearch() {
-        const q = document.getElementById('search-input').value.trim();
-        const container = document.getElementById('search-results');
+        var q = document.getElementById('search-input').value.trim();
+        var container = document.getElementById('search-results');
         if (!q) { container.innerHTML = ''; return; }
         try {
-            const resp = await fetch('/api/search?q=' + encodeURIComponent(q));
-            const results = await resp.json();
+            var resp = await fetch('/api/search?q=' + encodeURIComponent(q));
+            var results = await resp.json();
             if (results.length === 0) {
-                container.innerHTML = '<p><em>No results found.</em></p>';
+                container.innerHTML = '<p style="color:var(--text-muted);padding:16px 0">No results found.</p>';
                 return;
             }
-            container.innerHTML = results.map(r => {
-                const canConvert = r.type === 'page' || r.type === 'chapter';
+            container.innerHTML = results.map(function(r) {
+                var canConvert = r.type === 'page' || r.type === 'chapter';
                 return '<div class="search-result">' +
                     '<div class="search-result-info">' +
-                        '<strong>' + escHtml(r.name) + '</strong>' +
-                        '<span class="search-result-type">' + r.type + '</span>' +
+                        '<div class="search-result-title">' + escHtml(r.name) + '</div>' +
+                        '<div class="search-result-meta"><span class="type-pill">' + r.type + '</span></div>' +
                     '</div>' +
                     (canConvert ? buildConvertForm(r) : '') +
                 '</div>';
             }).join('');
         } catch (e) {
-            container.innerHTML = '<p><em>Search failed.</em></p>';
+            container.innerHTML = '<p style="color:var(--accent-red);padding:16px 0">Search failed.</p>';
         }
     }
 
     function buildConvertForm(result) {
-        return '<form method="post" action="/convert" style="margin:0" onsubmit="fillConvertFields(this)">' +
+        return '<form method="post" action="/convert" class="convert-form" onsubmit="fillConvertFields(this)">' +
             '<input type="hidden" name="bookstack_type" value="' + result.type + '">' +
             '<input type="hidden" name="bookstack_id" value="' + result.id + '">' +
             '<input type="hidden" name="voice">' +
             '<input type="hidden" name="mode">' +
-            '<button type="submit" class="outline convert-btn">Convert</button>' +
+            '<button type="submit" class="btn-convert">Convert</button>' +
         '</form>';
     }
 
@@ -205,62 +1221,171 @@
     }
 
     function escHtml(s) {
-        const d = document.createElement('div');
+        var d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
     }
 
+    /* ── Episode actions ────────────────────────────────── */
     async function deleteEpisode(id) {
         if (!confirm('Delete this episode?')) return;
         await fetch('/api/episodes/' + id, { method: 'DELETE' });
         location.reload();
     }
 
-    // Auto-search from ?q= deep link
+    /* ── Book collapse ──────────────────────────────────── */
+    function toggleBook(header) {
+        header.parentElement.classList.toggle('collapsed');
+    }
+
+    /* ── Audio player ───────────────────────────────────── */
+    var currentAudio = null;
+    var currentPlayer = null;
+
+    function togglePlay(btn) {
+        var player = btn.closest('.audio-player');
+        var src = player.dataset.src;
+
+        // If clicking a different player, stop the current one
+        if (currentPlayer && currentPlayer !== player) {
+            stopPlayer(currentPlayer);
+        }
+
+        if (!player._audio) {
+            var audio = new Audio(src);
+            player._audio = audio;
+            audio.addEventListener('timeupdate', function() {
+                var pct = (audio.currentTime / audio.duration) * 100;
+                player.querySelector('.progress-fill').style.width = pct + '%';
+                player.querySelector('.time-display').textContent = formatTime(audio.currentTime);
+            });
+            audio.addEventListener('ended', function() {
+                stopPlayer(player);
+            });
+        }
+
+        var audio = player._audio;
+        if (audio.paused) {
+            audio.play();
+            player.querySelector('.icon-play').style.display = 'none';
+            player.querySelector('.icon-pause').style.display = '';
+            currentPlayer = player;
+        } else {
+            audio.pause();
+            player.querySelector('.icon-play').style.display = '';
+            player.querySelector('.icon-pause').style.display = 'none';
+        }
+    }
+
+    function stopPlayer(player) {
+        if (player._audio) {
+            player._audio.pause();
+            player._audio.currentTime = 0;
+        }
+        player.querySelector('.progress-fill').style.width = '0%';
+        player.querySelector('.time-display').textContent = '0:00';
+        player.querySelector('.icon-play').style.display = '';
+        player.querySelector('.icon-pause').style.display = 'none';
+    }
+
+    function seekAudio(event, wrap) {
+        var player = wrap.closest('.audio-player');
+        if (!player._audio) return;
+        var rect = wrap.getBoundingClientRect();
+        var pct = (event.clientX - rect.left) / rect.width;
+        player._audio.currentTime = pct * player._audio.duration;
+    }
+
+    function formatTime(s) {
+        var m = Math.floor(s / 60);
+        var sec = Math.floor(s % 60);
+        return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    /* ── Toast ──────────────────────────────────────────── */
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 2500);
+    }
+
+    /* ── Settings form (AJAX submit) ────────────────────── */
+    document.getElementById('settings-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        try {
+            var resp = await fetch('/settings', {
+                method: 'POST',
+                body: new FormData(this),
+                redirect: 'manual',
+            });
+            showToast('Settings saved');
+        } catch (err) {
+            showToast('Failed to save settings');
+        }
+    });
+
+    /* ── Shelf picker ───────────────────────────────────── */
+    async function loadShelves() {
+        var picker = document.getElementById('shelf-picker');
+        if (picker.children.length) return;
+        try {
+            var resp = await fetch('/api/shelves');
+            var shelves = await resp.json();
+            var current = document.getElementById('auto-convert-shelves').value.split(',').map(function(s) { return s.trim(); });
+            shelves.forEach(function(s) {
+                var label = document.createElement('label');
+                label.className = 'shelf-check-item';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = s.id;
+                cb.checked = current.includes(String(s.id));
+                cb.addEventListener('change', updateShelfValue);
+                var span = document.createElement('span');
+                span.textContent = s.name;
+                label.appendChild(cb);
+                label.appendChild(span);
+                picker.appendChild(label);
+            });
+        } catch(e) {}
+    }
+
+    function updateShelfValue() {
+        var checks = document.querySelectorAll('#shelf-picker input[type=checkbox]:checked');
+        var ids = Array.from(checks).map(function(c) { return c.value; });
+        document.getElementById('auto-convert-shelves').value = ids.join(',');
+    }
+
+    // Load shelves when settings view first appears
+    var shelvesLoaded = false;
+    var origSwitch = switchView;
+    switchView = function(name) {
+        origSwitch(name);
+        if (name === 'settings' && !shelvesLoaded) {
+            shelvesLoaded = true;
+            loadShelves();
+        }
+    };
+
+    /* ── Auto-search from ?q= deep link ─────────────────── */
     {% if initial_query %}
     document.getElementById('search-input').value = {{ initial_query | tojson }};
     doSearch();
     {% endif %}
 
-    // Load shelves into picker when settings dialog opens
-    document.getElementById('settings-dialog').addEventListener('open', loadShelves);
-    document.getElementById('settings-dialog').addEventListener('click', function(e) {
-        if (!document.getElementById('shelf-picker').children.length) loadShelves();
-    });
-    async function loadShelves() {
-        const picker = document.getElementById('shelf-picker');
-        if (picker.children.length) return;
-        try {
-            const resp = await fetch('/api/shelves');
-            const shelves = await resp.json();
-            const current = document.getElementById('auto-convert-shelves').value.split(',').map(s => s.trim());
-            shelves.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.name;
-                opt.selected = current.includes(String(s.id));
-                picker.appendChild(opt);
-            });
-        } catch(e) {}
-    }
-    document.getElementById('shelf-picker').addEventListener('change', function() {
-        const selected = Array.from(this.selectedOptions).map(o => o.value);
-        document.getElementById('auto-convert-shelves').value = selected.join(',');
-    });
-
+    /* ── Status polling ─────────────────────────────────── */
     {% if has_pending %}
-    // Poll for status changes without wiping the page
     (function() {
-        const initial = {{ episodes | tojson }};
-        const statusMap = {};
-        initial.forEach(e => statusMap[e.id] = e.status);
+        var initial = {{ episodes | tojson }};
+        var statusMap = {};
+        initial.forEach(function(e) { statusMap[e.id] = e.status; });
 
         async function pollStatus() {
             try {
-                const resp = await fetch('/api/episodes/status');
-                const episodes = await resp.json();
-                let changed = false;
-                episodes.forEach(e => {
+                var resp = await fetch('/api/episodes/status');
+                var episodes = await resp.json();
+                var changed = false;
+                episodes.forEach(function(e) {
                     if (statusMap[e.id] && statusMap[e.id] !== e.status) changed = true;
                     if (!statusMap[e.id]) changed = true;
                 });
@@ -274,84 +1399,5 @@
     })();
     {% endif %}
     </script>
-
-    <!-- Settings -->
-    <dialog id="settings-dialog">
-        <article>
-            <header>
-                <button aria-label="Close" rel="prev" onclick="document.getElementById('settings-dialog').close()"></button>
-                <h2>Settings</h2>
-            </header>
-            <form method="post" action="/settings">
-                <fieldset>
-                    <legend>Text-to-Speech</legend>
-                    <label>
-                        TTS Engine
-                        <select name="tts_engine">
-                            <option value="edge" {% if tts_engine == 'edge' %}selected{% endif %}>Edge TTS (free, slower)</option>
-                            <option value="openai" {% if tts_engine == 'openai' %}selected{% endif %}>OpenAI TTS (fast, requires API key)</option>
-                        </select>
-                    </label>
-                    <small>Changing the engine also changes available voices. Save and refresh to update the voice list.</small>
-                </fieldset>
-                <fieldset>
-                    <legend>Podcast Script Generation (LLM)</legend>
-                    <label>
-                        LLM Provider
-                        <select name="llm_provider">
-                            <option value="openai" {% if llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
-                            <option value="gemini" {% if llm_provider == 'gemini' %}selected{% endif %}>Google Gemini (free tier available)</option>
-                        </select>
-                    </label>
-                </fieldset>
-                <fieldset>
-                    <legend>Auto-Convert</legend>
-                    <label>
-                        <input type="checkbox" name="auto_convert_enabled" value="true"
-                               {% if auto_convert_enabled == 'true' %}checked{% endif %}>
-                        Enable auto-convert
-                    </label>
-                    <label>
-                        Watched Shelves
-                        <select id="shelf-picker" multiple size="4" style="width:100%"></select>
-                        <input type="hidden" name="auto_convert_shelves" id="auto-convert-shelves"
-                               value="{{ auto_convert_shelves }}">
-                    </label>
-                    <small id="shelf-current">
-                        {% if auto_convert_shelves %}Current: shelf IDs {{ auto_convert_shelves }}{% endif %}
-                    </small>
-                    <div class="grid">
-                        <label>
-                            Mode
-                            <select name="auto_convert_mode">
-                                <option value="podcast" {% if auto_convert_mode == 'podcast' %}selected{% endif %}>Podcast</option>
-                                <option value="narration" {% if auto_convert_mode == 'narration' %}selected{% endif %}>Narration</option>
-                            </select>
-                        </label>
-                        <label>
-                            Check every (minutes)
-                            <input type="number" name="auto_convert_interval" min="5" max="1440"
-                                   value="{{ auto_convert_interval }}">
-                        </label>
-                    </div>
-                </fieldset>
-                <fieldset>
-                    <legend>API Keys</legend>
-                    <label>
-                        OpenAI API Key <small>(used for TTS and/or LLM)</small>
-                        <input type="password" name="openai_api_key" placeholder="{{ 'Key saved' if has_openai_key else 'sk-...' }}">
-                    </label>
-                    <label>
-                        Google Gemini API Key
-                        <input type="password" name="gemini_api_key" placeholder="{{ 'Key saved' if has_gemini_key else 'Get one free at aistudio.google.com' }}">
-                    </label>
-                    <small>Keys are stored locally on the server. Leave blank to keep the current key.</small>
-                </fieldset>
-                <footer>
-                    <button type="submit">Save</button>
-                </footer>
-            </form>
-        </article>
-    </dialog>
 </body>
 </html>

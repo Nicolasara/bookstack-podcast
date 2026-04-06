@@ -14,7 +14,15 @@ from .feed import generate_podcast_feed
 from .settings import get_setting, has_podcast_key, set_setting
 from .tts import generate_audio, generate_podcast_audio, get_voice_options
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="BookStack Podcast")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/app/data"))
@@ -257,6 +265,18 @@ async def _scan_and_convert():
             await process_conversion(
                 episode_id, "page", page["id"], voice, mode
             )
+
+
+@app.get("/api/page/{page_id}/episodes")
+async def page_episodes(page_id: int):
+    """Get all episodes for a specific page."""
+    episodes = await db.get_episodes()
+    results = []
+    for e in episodes:
+        if e["bookstack_type"] == "page" and e["bookstack_id"] == page_id:
+            e["voice_label"] = _voice_label(e.get("voice", ""))
+            results.append(e)
+    return results
 
 
 @app.get("/api/shelves")
