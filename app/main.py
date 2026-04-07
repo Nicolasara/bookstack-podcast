@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from .bookstack import BookStackClient
 from .database import Database
 from .feed import generate_podcast_feed
-from .settings import get_setting, has_podcast_key, set_setting
+from .settings import get_setting, has_podcast_key, set_setting, set_settings
 from .tts import generate_audio, generate_podcast_audio, get_voice_options, get_podcast_voices, get_default_narration_voice, VOICE_OPTIONS, OPENAI_VOICE_OPTIONS
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,7 +31,6 @@ AUDIO_DIR = DATA_DIR / "audio"
 
 db = Database(DATA_DIR / "episodes.db")
 bookstack = BookStackClient()
-conversion_lock = asyncio.Lock()
 
 
 def _all_voices() -> list:
@@ -125,7 +124,10 @@ async def index(request: Request, q: str = ""):
             "has_pending": has_pending,
             "has_podcast": has_podcast_key(),
             "llm_provider": get_setting("llm_provider", "openai"),
-            "llm_model": get_setting("llm_model", "gpt-4o-mini"),
+            "llm_model": get_setting(
+                "openai_llm_model" if get_setting("llm_provider", "openai") == "openai" else "gemini_llm_model",
+                "gpt-4o-mini" if get_setting("llm_provider", "openai") == "openai" else "gemini-2.5-flash",
+            ),
             "has_openai_key": bool(get_setting("openai_api_key")),
             "has_gemini_key": bool(get_setting("gemini_api_key")),
             "bookstack_url": get_setting("bookstack_url", ""),
@@ -258,6 +260,8 @@ async def process_conversion(
                 "file_size": file_size,
                 "book_id": content.get("book_id"),
                 "book_name": content.get("book_name", ""),
+                "shelf_id": content.get("shelf_id"),
+                "shelf_name": content.get("shelf_name", ""),
                 "status": "done",
                 "error_message": None,
             },
@@ -283,7 +287,7 @@ async def auto_convert_worker():
 async def _scan_and_convert():
     shelf_ids = get_setting("auto_convert_shelves", "")
     mode = get_setting("auto_convert_mode", "podcast")
-    voice = get_setting("auto_convert_voice", "en-US-AndrewMultilingualNeural")
+    voice = get_default_narration_voice()
     effective_voice = "podcast" if mode == "podcast" else voice
 
     for shelf_id_str in shelf_ids.split(","):
@@ -322,7 +326,10 @@ async def api_convert_all(
     mode: str = Form("narration"),
 ):
     """Convert all pages in a book or shelf."""
-    source_id_int = int(source_id)
+    try:
+        source_id_int = int(source_id)
+    except ValueError:
+        return {"status": "error", "message": f"Invalid source ID: {source_id}"}
     effective_voice = "podcast" if mode == "podcast" else voice
 
     if source_type == "bookshelf":
@@ -393,39 +400,37 @@ async def save_settings(
     auto_convert_mode: str = Form("podcast"),
     auto_convert_interval: str = Form("30"),
 ):
+    updates = {
+        "tts_engine": tts_engine,
+        "llm_provider": llm_provider,
+        "auto_convert_enabled": auto_convert_enabled,
+        "auto_convert_shelves": auto_convert_shelves,
+        "auto_convert_mode": auto_convert_mode,
+        "auto_convert_interval": auto_convert_interval,
+    }
+    # Only save secrets/optional fields if actually provided
     if bookstack_url:
-        set_setting("bookstack_url", bookstack_url)
+        updates["bookstack_url"] = bookstack_url
     if bookstack_token_id:
-        set_setting("bookstack_token_id", bookstack_token_id)
+        updates["bookstack_token_id"] = bookstack_token_id
     if bookstack_token_secret:
-        set_setting("bookstack_token_secret", bookstack_token_secret)
-    set_setting("tts_engine", tts_engine)
+        updates["bookstack_token_secret"] = bookstack_token_secret
     if default_narration_voice:
-        set_setting("default_narration_voice", default_narration_voice)
+        updates["default_narration_voice"] = default_narration_voice
     if podcast_voice_a:
-        # Store under engine-specific keys
-        engine = tts_engine
-        if engine == "openai":
-            set_setting("openai_podcast_voice_a", podcast_voice_a)
-        else:
-            set_setting("edge_podcast_voice_a", podcast_voice_a)
+        key = "openai_podcast_voice_a" if tts_engine == "openai" else "edge_podcast_voice_a"
+        updates[key] = podcast_voice_a
     if podcast_voice_b:
-        engine = tts_engine
-        if engine == "openai":
-            set_setting("openai_podcast_voice_b", podcast_voice_b)
-        else:
-            set_setting("edge_podcast_voice_b", podcast_voice_b)
-    set_setting("llm_provider", llm_provider)
+        key = "openai_podcast_voice_b" if tts_engine == "openai" else "edge_podcast_voice_b"
+        updates[key] = podcast_voice_b
     if llm_model:
-        set_setting("llm_model", llm_model)
+        key = "openai_llm_model" if llm_provider == "openai" else "gemini_llm_model"
+        updates[key] = llm_model
     if openai_api_key:
-        set_setting("openai_api_key", openai_api_key)
+        updates["openai_api_key"] = openai_api_key
     if gemini_api_key:
-        set_setting("gemini_api_key", gemini_api_key)
-    set_setting("auto_convert_enabled", auto_convert_enabled)
-    set_setting("auto_convert_shelves", auto_convert_shelves)
-    set_setting("auto_convert_mode", auto_convert_mode)
-    set_setting("auto_convert_interval", auto_convert_interval)
+        updates["gemini_api_key"] = gemini_api_key
+    set_settings(updates)
 
     # Return JSON for AJAX requests, redirect for normal form POSTs
     accept = request.headers.get("accept", "")

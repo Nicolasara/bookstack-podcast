@@ -11,6 +11,7 @@ from .settings import get_setting
 class BookStackClient:
     def __init__(self):
         self._book_shelf_cache = {}
+        self._cache_time = 0
 
     @property
     def base_url(self):
@@ -23,9 +24,13 @@ class BookStackClient:
         return {"Authorization": f"Token {token_id}:{token_secret}"}
 
     async def _ensure_shelf_cache(self):
-        """Build book_id -> shelf mapping by listing all shelves."""
-        if self._book_shelf_cache:
+        """Build book_id -> shelf mapping by listing all shelves. Refreshes every 10 min."""
+        import time
+        now = time.monotonic()
+        if self._book_shelf_cache and (now - self._cache_time) < 600:
             return
+        self._book_shelf_cache = {}
+        self._cache_time = now
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
                 f"{self.base_url}/api/shelves", headers=self.headers

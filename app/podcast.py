@@ -44,7 +44,7 @@ async def _generate_openai(content: str, title: str) -> list[dict]:
 
     client = AsyncOpenAI(api_key=api_key)
     response = await client.chat.completions.create(
-        model=get_setting("llm_model", "gpt-4o-mini"),
+        model=get_setting("openai_llm_model", "gpt-4o-mini"),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -71,7 +71,7 @@ async def _generate_gemini(content: str, title: str) -> list[dict]:
         raise ValueError("Gemini API key not configured — set it in Settings")
 
     client = genai.Client(api_key=api_key)
-    model = get_setting("llm_model", "gemini-2.5-flash")
+    model = get_setting("gemini_llm_model", "gemini-2.5-flash")
     prompt = (
         f"{SYSTEM_PROMPT}\n\n"
         f"Create a podcast episode discussing this content:\n\n"

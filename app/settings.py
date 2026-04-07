@@ -37,6 +37,15 @@ def set_setting(key: str, value: str):
     SETTINGS_FILE.write_text(json.dumps(data, indent=2))
 
 
+def set_settings(updates: dict):
+    """Batch-write multiple settings in a single file operation."""
+    data = {}
+    if SETTINGS_FILE.exists():
+        data = json.loads(SETTINGS_FILE.read_text())
+    data.update(updates)
+    SETTINGS_FILE.write_text(json.dumps(data, indent=2))
+
+
 def has_podcast_key() -> bool:
     """Check if any LLM API key is configured for podcast mode."""
     provider = get_setting("llm_provider", "openai")
