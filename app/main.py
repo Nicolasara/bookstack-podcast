@@ -184,58 +184,66 @@ async def process_conversion(
     voice: str,
     mode: str,
 ):
-    async with conversion_lock:
-        try:
-            await db.update_status(episode_id, "processing")
+    try:
+        await db.update_status(episode_id, "processing")
 
-            if bookstack_type == "chapter":
-                content = await bookstack.get_chapter(bookstack_id)
-            else:
-                content = await bookstack.get_page(bookstack_id)
+        if bookstack_type == "chapter":
+            content = await bookstack.get_chapter(bookstack_id)
+        else:
+            content = await bookstack.get_page(bookstack_id)
 
-            # Save metadata immediately so the UI shows title while processing
-            await db.update_episode(episode_id, {
+        # Save metadata immediately so the UI shows title while processing
+        await db.update_episode(episode_id, {
+            "title": content["title"],
+            "description": content.get("description", ""),
+            "book_id": content.get("book_id"),
+            "book_name": content.get("book_name", ""),
+            "shelf_name": content.get("shelf_name", ""),
+            "shelf_id": content.get("shelf_id"),
+        })
+
+        text = content["text"]
+        if not text.strip():
+            raise ValueError("Page has no text content")
+
+        filename = _audio_filename(bookstack_type, bookstack_id, mode, voice)
+        output_path = AUDIO_DIR / filename
+
+        import time as _time
+
+        if mode == "podcast":
+            from .podcast import generate_podcast_script
+
+            t0 = _time.monotonic()
+            script = await generate_podcast_script(text, content["title"])
+            t1 = _time.monotonic()
+            duration = await generate_podcast_audio(script, str(output_path))
+            t2 = _time.monotonic()
+            import logging as _log; _log.warning(f"[ep {episode_id}] LLM script: {t1-t0:.1f}s ({len(script)} segments), TTS: {t2-t1:.1f}s, total: {t2-t0:.1f}s")
+        else:
+            t0 = _time.monotonic()
+            duration = await generate_audio(text, str(output_path), voice)
+            t1 = _time.monotonic()
+            import logging as _log; _log.warning(f"[ep {episode_id}] TTS narration: {t1-t0:.1f}s")
+
+        file_size = output_path.stat().st_size
+
+        await db.update_episode(
+            episode_id,
+            {
                 "title": content["title"],
                 "description": content.get("description", ""),
+                "audio_filename": filename,
+                "duration_seconds": duration,
+                "file_size": file_size,
                 "book_id": content.get("book_id"),
                 "book_name": content.get("book_name", ""),
-                "shelf_name": content.get("shelf_name", ""),
-                "shelf_id": content.get("shelf_id"),
-            })
-
-            text = content["text"]
-            if not text.strip():
-                raise ValueError("Page has no text content")
-
-            filename = _audio_filename(bookstack_type, bookstack_id, mode, voice)
-            output_path = AUDIO_DIR / filename
-
-            if mode == "podcast":
-                from .podcast import generate_podcast_script
-
-                script = await generate_podcast_script(text, content["title"])
-                duration = await generate_podcast_audio(script, str(output_path))
-            else:
-                duration = await generate_audio(text, str(output_path), voice)
-
-            file_size = output_path.stat().st_size
-
-            await db.update_episode(
-                episode_id,
-                {
-                    "title": content["title"],
-                    "description": content.get("description", ""),
-                    "audio_filename": filename,
-                    "duration_seconds": duration,
-                    "file_size": file_size,
-                    "book_id": content.get("book_id"),
-                    "book_name": content.get("book_name", ""),
-                    "status": "done",
-                    "error_message": None,
-                },
-            )
-        except Exception as e:
-            await db.update_status(episode_id, "error", str(e))
+                "status": "done",
+                "error_message": None,
+            },
+        )
+    except Exception as e:
+        await db.update_status(episode_id, "error", str(e))
 
 
 async def auto_convert_worker():
