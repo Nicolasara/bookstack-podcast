@@ -5,18 +5,22 @@ from urllib.parse import urlparse
 import httpx
 
 
-BOOKSTACK_URL = os.environ.get("BOOKSTACK_URL", "http://192.168.6.177:8084")
-BOOKSTACK_TOKEN_ID = os.environ.get("BOOKSTACK_TOKEN_ID", "")
-BOOKSTACK_TOKEN_SECRET = os.environ.get("BOOKSTACK_TOKEN_SECRET", "")
+from .settings import get_setting
 
 
 class BookStackClient:
     def __init__(self):
-        self.base_url = BOOKSTACK_URL.rstrip("/")
-        self.headers = {
-            "Authorization": f"Token {BOOKSTACK_TOKEN_ID}:{BOOKSTACK_TOKEN_SECRET}",
-        }
         self._book_shelf_cache = {}
+
+    @property
+    def base_url(self):
+        return get_setting("bookstack_url", "http://localhost:8084").rstrip("/")
+
+    @property
+    def headers(self):
+        token_id = get_setting("bookstack_token_id", "")
+        token_secret = get_setting("bookstack_token_secret", "")
+        return {"Authorization": f"Token {token_id}:{token_secret}"}
 
     async def _ensure_shelf_cache(self):
         """Build book_id -> shelf mapping by listing all shelves."""

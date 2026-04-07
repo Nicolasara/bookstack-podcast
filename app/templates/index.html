@@ -1093,6 +1093,30 @@
                 <h2>Settings</h2>
                 <form id="settings-form" method="post" action="/settings">
                     <div class="settings-grid">
+                        <!-- BookStack Connection -->
+                        <div class="settings-card full-width">
+                            <h3>BookStack Connection</h3>
+                            <div class="field-group">
+                                <label class="field-label">BookStack URL</label>
+                                <input type="url" name="bookstack_url" class="field-input"
+                                       placeholder="{{ bookstack_url or 'https://your-bookstack-instance.com' }}"
+                                       value="{{ bookstack_url }}">
+                            </div>
+                            <div class="settings-row">
+                                <div class="field-group">
+                                    <label class="field-label">API Token ID</label>
+                                    <input type="password" name="bookstack_token_id" class="field-input"
+                                           placeholder="{{ 'Token saved' if has_bookstack_token else 'Token ID from BookStack profile' }}">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">API Token Secret</label>
+                                    <input type="password" name="bookstack_token_secret" class="field-input"
+                                           placeholder="{{ 'Token saved' if has_bookstack_token else 'Token secret' }}">
+                                </div>
+                            </div>
+                            <p class="field-hint">Create an API token in your BookStack user profile under "API Tokens". Leave blank to keep current values.</p>
+                        </div>
+
                         <!-- TTS Engine -->
                         <div class="settings-card">
                             <h3>Text-to-Speech</h3>

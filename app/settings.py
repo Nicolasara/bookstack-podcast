@@ -18,6 +18,9 @@ def get_setting(key: str, default=None):
         "openai_api_key": "OPENAI_API_KEY",
         "gemini_api_key": "GEMINI_API_KEY",
         "llm_provider": "LLM_PROVIDER",
+        "bookstack_url": "BOOKSTACK_URL",
+        "bookstack_token_id": "BOOKSTACK_TOKEN_ID",
+        "bookstack_token_secret": "BOOKSTACK_TOKEN_SECRET",
     }
     if key in env_map:
         val = os.environ.get(env_map[key])

@@ -113,6 +113,8 @@ async def index(request: Request, q: str = ""):
             "llm_provider": get_setting("llm_provider", "openai"),
             "has_openai_key": bool(get_setting("openai_api_key")),
             "has_gemini_key": bool(get_setting("gemini_api_key")),
+            "bookstack_url": get_setting("bookstack_url", ""),
+            "has_bookstack_token": bool(get_setting("bookstack_token_id")),
             "auto_convert_enabled": get_setting("auto_convert_enabled", "false"),
             "auto_convert_shelves": get_setting("auto_convert_shelves", ""),
             "auto_convert_mode": get_setting("auto_convert_mode", "podcast"),
@@ -356,6 +358,9 @@ async def list_shelves():
 
 @app.post("/settings")
 async def save_settings(
+    bookstack_url: str = Form(""),
+    bookstack_token_id: str = Form(""),
+    bookstack_token_secret: str = Form(""),
     tts_engine: str = Form("edge"),
     llm_provider: str = Form("openai"),
     openai_api_key: str = Form(""),
@@ -365,6 +370,12 @@ async def save_settings(
     auto_convert_mode: str = Form("podcast"),
     auto_convert_interval: str = Form("30"),
 ):
+    if bookstack_url:
+        set_setting("bookstack_url", bookstack_url)
+    if bookstack_token_id:
+        set_setting("bookstack_token_id", bookstack_token_id)
+    if bookstack_token_secret:
+        set_setting("bookstack_token_secret", bookstack_token_secret)
     set_setting("tts_engine", tts_engine)
     set_setting("llm_provider", llm_provider)
     if openai_api_key:
