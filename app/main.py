@@ -12,7 +12,7 @@ from .bookstack import BookStackClient
 from .database import Database
 from .feed import generate_podcast_feed
 from .settings import get_setting, has_podcast_key, set_setting
-from .tts import generate_audio, generate_podcast_audio, get_voice_options
+from .tts import generate_audio, generate_podcast_audio, get_voice_options, get_podcast_voices, get_default_narration_voice
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -115,6 +115,8 @@ async def index(request: Request, q: str = ""):
             "has_gemini_key": bool(get_setting("gemini_api_key")),
             "bookstack_url": get_setting("bookstack_url", ""),
             "has_bookstack_token": bool(get_setting("bookstack_token_id")),
+            "podcast_voices": get_podcast_voices(),
+            "default_narration_voice": get_default_narration_voice(),
             "auto_convert_enabled": get_setting("auto_convert_enabled", "false"),
             "auto_convert_shelves": get_setting("auto_convert_shelves", ""),
             "auto_convert_mode": get_setting("auto_convert_mode", "podcast"),
@@ -362,6 +364,9 @@ async def save_settings(
     bookstack_token_id: str = Form(""),
     bookstack_token_secret: str = Form(""),
     tts_engine: str = Form("edge"),
+    default_narration_voice: str = Form(""),
+    podcast_voice_a: str = Form(""),
+    podcast_voice_b: str = Form(""),
     llm_provider: str = Form("openai"),
     openai_api_key: str = Form(""),
     gemini_api_key: str = Form(""),
@@ -377,6 +382,21 @@ async def save_settings(
     if bookstack_token_secret:
         set_setting("bookstack_token_secret", bookstack_token_secret)
     set_setting("tts_engine", tts_engine)
+    if default_narration_voice:
+        set_setting("default_narration_voice", default_narration_voice)
+    if podcast_voice_a:
+        # Store under engine-specific keys
+        engine = tts_engine
+        if engine == "openai":
+            set_setting("openai_podcast_voice_a", podcast_voice_a)
+        else:
+            set_setting("edge_podcast_voice_a", podcast_voice_a)
+    if podcast_voice_b:
+        engine = tts_engine
+        if engine == "openai":
+            set_setting("openai_podcast_voice_b", podcast_voice_b)
+        else:
+            set_setting("edge_podcast_voice_b", podcast_voice_b)
     set_setting("llm_provider", llm_provider)
     if openai_api_key:
         set_setting("openai_api_key", openai_api_key)

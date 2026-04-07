@@ -957,7 +957,17 @@
                     </div>
                     <select id="voice-select" class="voice-select">
                         {% for voice_id, voice_name in voices %}
-                        <option value="{{ voice_id }}">{{ voice_name }}</option>
+                        <option value="{{ voice_id }}" {% if voice_id == default_narration_voice %}selected{% endif %}>{{ voice_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="podcast-voice-a" class="voice-select" style="display:none" title="Host Alex voice">
+                        {% for voice_id, voice_name in voices %}
+                        <option value="{{ voice_id }}" {% if voice_id == podcast_voices.A %}selected{% endif %}>A: {{ voice_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="podcast-voice-b" class="voice-select" style="display:none" title="Host Sam voice">
+                        {% for voice_id, voice_name in voices %}
+                        <option value="{{ voice_id }}" {% if voice_id == podcast_voices.B %}selected{% endif %}>B: {{ voice_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1128,6 +1138,32 @@
                                 </select>
                             </div>
                             <p class="field-hint">Changing the engine changes available voices. Save and refresh to update.</p>
+                            <div class="field-group">
+                                <label class="field-label">Default Narration Voice</label>
+                                <select name="default_narration_voice" class="field-select">
+                                    {% for vid, vname in voices %}
+                                    <option value="{{ vid }}" {% if vid == default_narration_voice %}selected{% endif %}>{{ vname }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="field-group">
+                                    <label class="field-label">Podcast Voice A (Host Alex)</label>
+                                    <select name="podcast_voice_a" class="field-select">
+                                        {% for vid, vname in voices %}
+                                        <option value="{{ vid }}" {% if vid == podcast_voices.A %}selected{% endif %}>{{ vname }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Podcast Voice B (Host Sam)</label>
+                                    <select name="podcast_voice_b" class="field-select">
+                                        {% for vid, vname in voices %}
+                                        <option value="{{ vid }}" {% if vid == podcast_voices.B %}selected{% endif %}>{{ vname }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- LLM Provider -->
@@ -1217,6 +1253,9 @@
         document.getElementById('view-' + name).classList.add('active');
         document.querySelector('.nav-item[data-view="' + name + '"]').classList.add('active');
         localStorage.setItem('bsp-view', name);
+        if (name === 'settings' && typeof loadShelves === 'function') {
+            loadShelves();
+        }
     }
 
     // Restore last view
@@ -1238,7 +1277,10 @@
 
     function toggleMode() {
         var mode = document.getElementById('mode-select').value;
-        document.getElementById('voice-select').style.display = mode === 'narration' ? '' : 'none';
+        var isNarration = mode === 'narration';
+        document.getElementById('voice-select').style.display = isNarration ? '' : 'none';
+        document.getElementById('podcast-voice-a').style.display = isNarration ? 'none' : '';
+        document.getElementById('podcast-voice-b').style.display = isNarration ? 'none' : '';
     }
     toggleMode();
 
@@ -1455,16 +1497,10 @@
         document.getElementById('auto-convert-shelves').value = ids.join(',');
     }
 
-    // Load shelves when settings view first appears
-    var shelvesLoaded = false;
-    var origSwitch = switchView;
-    switchView = function(name) {
-        origSwitch(name);
-        if (name === 'settings' && !shelvesLoaded) {
-            shelvesLoaded = true;
-            loadShelves();
-        }
-    };
+    // If settings view was restored before loadShelves was defined, load now
+    if (document.getElementById('view-settings').classList.contains('active')) {
+        loadShelves();
+    }
 
     /* ── Auto-search from ?q= deep link ─────────────────── */
     {% if initial_query %}

@@ -7,7 +7,6 @@ from pydub import AudioSegment
 
 from .settings import get_setting
 
-DEFAULT_VOICE = os.environ.get("TTS_VOICE", "en-US-GuyNeural")
 
 VOICE_OPTIONS = [
     ("en-US-AndrewMultilingualNeural", "Andrew (US Male)"),
@@ -41,11 +40,25 @@ OPENAI_VOICE_OPTIONS = [
     ("shimmer", "Shimmer"),
 ]
 
-PODCAST_VOICE_A = os.environ.get("PODCAST_VOICE_A", "en-US-AndrewMultilingualNeural")
-PODCAST_VOICE_B = os.environ.get("PODCAST_VOICE_B", "en-US-AvaMultilingualNeural")
+def get_podcast_voices() -> dict:
+    """Get the current podcast voice pair based on TTS engine."""
+    engine = get_setting("tts_engine", "edge")
+    if engine == "openai":
+        return {
+            "A": get_setting("openai_podcast_voice_a", "ash"),
+            "B": get_setting("openai_podcast_voice_b", "nova"),
+        }
+    return {
+        "A": get_setting("edge_podcast_voice_a", "en-US-AndrewMultilingualNeural"),
+        "B": get_setting("edge_podcast_voice_b", "en-US-AvaMultilingualNeural"),
+    }
 
-OPENAI_PODCAST_VOICE_A = "ash"
-OPENAI_PODCAST_VOICE_B = "nova"
+
+def get_default_narration_voice() -> str:
+    engine = get_setting("tts_engine", "edge")
+    if engine == "openai":
+        return get_setting("default_narration_voice", "alloy")
+    return get_setting("default_narration_voice", "en-US-AndrewMultilingualNeural")
 
 
 def get_voice_options() -> list:
@@ -75,14 +88,14 @@ async def generate_podcast_audio(segments: list[dict], output_path: str) -> floa
 # --- Edge TTS ---
 
 async def _generate_edge(text: str, output_path: str, voice: str = None) -> float:
-    voice = voice or DEFAULT_VOICE
+    voice = voice or get_default_narration_voice()
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_path)
     return MP3(output_path).info.length
 
 
 async def _generate_podcast_edge(segments: list[dict], output_path: str) -> float:
-    voices = {"A": PODCAST_VOICE_A, "B": PODCAST_VOICE_B}
+    voices = get_podcast_voices()
     combined = AudioSegment.empty()
     pause = AudioSegment.silent(duration=400)
 
@@ -123,7 +136,7 @@ async def _openai_tts_to_file(client, model: str, voice: str, text: str, path: s
 
 async def _generate_openai(text: str, output_path: str, voice: str = None) -> float:
     client = _get_openai_client()
-    voice = voice or "alloy"
+    voice = voice or get_default_narration_voice()
     model = get_setting("openai_tts_model", "gpt-4o-mini-tts-2025-03-20")
     chunks = _chunk_text(text, 4000)
     combined = AudioSegment.empty()
@@ -142,7 +155,7 @@ async def _generate_podcast_openai(segments: list[dict], output_path: str) -> fl
     import asyncio
 
     client = _get_openai_client()
-    voices = {"A": OPENAI_PODCAST_VOICE_A, "B": OPENAI_PODCAST_VOICE_B}
+    voices = get_podcast_voices()
     model = get_setting("openai_tts_model", "gpt-4o-mini-tts-2025-03-20")
     pause = AudioSegment.silent(duration=400)
 
