@@ -1192,12 +1192,14 @@
             }
             container.innerHTML = results.map(function(r) {
                 var canConvert = r.type === 'page' || r.type === 'chapter';
+                var canConvertAll = r.type === 'book' || r.type === 'bookshelf';
                 return '<div class="search-result">' +
                     '<div class="search-result-info">' +
                         '<div class="search-result-title">' + escHtml(r.name) + '</div>' +
                         '<div class="search-result-meta"><span class="type-pill">' + r.type + '</span></div>' +
                     '</div>' +
                     (canConvert ? buildConvertForm(r) : '') +
+                    (canConvertAll ? buildConvertAllBtn(r) : '') +
                 '</div>';
             }).join('');
         } catch (e) {
@@ -1218,6 +1220,29 @@
     function fillConvertFields(form) {
         form.voice.value = document.getElementById('voice-select').value;
         form.mode.value = document.getElementById('mode-select').value;
+    }
+
+    function buildConvertAllBtn(result) {
+        return '<button class="btn-convert" onclick="convertAll(\'' + result.type + '\', ' + result.id + ', this)">Convert All</button>';
+    }
+
+    async function convertAll(sourceType, sourceId, btn) {
+        btn.disabled = true;
+        btn.textContent = 'Queuing...';
+        var form = new FormData();
+        form.append('source_type', sourceType);
+        form.append('source_id', sourceId);
+        form.append('mode', document.getElementById('mode-select').value);
+        form.append('voice', document.getElementById('voice-select').value);
+        try {
+            var resp = await fetch('/api/convert-all', { method: 'POST', body: form });
+            var data = await resp.json();
+            btn.textContent = 'Queued ' + data.queued + '/' + data.total_pages;
+            setTimeout(function() { location.reload(); }, 2000);
+        } catch(e) {
+            btn.textContent = 'Failed';
+            btn.disabled = false;
+        }
     }
 
     function escHtml(s) {

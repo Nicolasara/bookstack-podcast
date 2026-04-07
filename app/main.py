@@ -267,6 +267,48 @@ async def _scan_and_convert():
             )
 
 
+@app.post("/api/convert-all")
+async def api_convert_all(
+    background_tasks: BackgroundTasks,
+    source_type: str = Form(...),
+    source_id: str = Form(...),
+    voice: str = Form("en-US-AndrewMultilingualNeural"),
+    mode: str = Form("narration"),
+):
+    """Convert all pages in a book or shelf."""
+    source_id_int = int(source_id)
+    effective_voice = "podcast" if mode == "podcast" else voice
+
+    if source_type == "bookshelf":
+        pages = await bookstack.get_shelf_pages(source_id_int)
+    elif source_type == "book":
+        pages = await bookstack.get_book_pages(source_id_int)
+    else:
+        return {"status": "error", "message": f"Cannot convert all for type: {source_type}"}
+
+    queued = 0
+    for page in pages:
+        existing = await db.get_episode_by_source(
+            "page", page["id"], mode, effective_voice
+        )
+        if existing:
+            continue
+        episode_id = await db.create_episode(
+            "page", page["id"], mode, effective_voice
+        )
+        await db.update_episode(episode_id, {
+            "title": page["name"],
+            "book_name": page["book_name"],
+            "book_id": page.get("book_id"),
+        })
+        background_tasks.add_task(
+            process_conversion, episode_id, "page", page["id"], voice, mode
+        )
+        queued += 1
+
+    return {"status": "queued", "queued": queued, "total_pages": len(pages)}
+
+
 @app.get("/api/page/{page_id}/episodes")
 async def page_episodes(page_id: int):
     """Get all episodes for a specific page."""

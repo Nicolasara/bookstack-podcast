@@ -137,6 +137,42 @@ class BookStackClient:
                             })
             return pages
 
+    async def get_book_pages(self, book_id: int) -> list:
+        """Get all pages in a book."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/books/{book_id}",
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            book = resp.json()
+            book_name = book["name"]
+
+            pages = []
+            for item in book.get("contents", []):
+                if item["type"] == "page":
+                    pages.append({
+                        "id": item["id"],
+                        "name": item["name"],
+                        "book_name": book_name,
+                        "book_id": book_id,
+                    })
+                elif item["type"] == "chapter":
+                    ch_resp = await client.get(
+                        f"{self.base_url}/api/chapters/{item['id']}",
+                        headers=self.headers,
+                    )
+                    if ch_resp.status_code != 200:
+                        continue
+                    for page in ch_resp.json().get("pages", []):
+                        pages.append({
+                            "id": page["id"],
+                            "name": page["name"],
+                            "book_name": book_name,
+                            "book_id": book_id,
+                        })
+            return pages
+
     async def get_metadata(self, content_type: str, content_id: int) -> dict:
         """Lightweight fetch of just title and book name (no plaintext export)."""
         async with httpx.AsyncClient() as client:
