@@ -14,7 +14,7 @@ class Database:
             cursor = await db.execute("SELECT sql FROM sqlite_master WHERE name='episodes'")
             row = await cursor.fetchone()
 
-            if row and "book_name" not in row[0]:
+            if row and "shelf_name" not in row[0]:
                 # Migrate: add book columns
                 await db.execute("ALTER TABLE episodes RENAME TO episodes_old")
                 await self._create_table(db)
@@ -51,6 +51,8 @@ class Database:
                 mode TEXT DEFAULT 'narration',
                 book_id INTEGER,
                 book_name TEXT DEFAULT '',
+                shelf_id INTEGER,
+                shelf_name TEXT DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
                 error_message TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

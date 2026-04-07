@@ -43,25 +43,35 @@ def _voice_label(voice_id: str) -> str:
 
 
 def _group_episodes(episodes: list) -> list:
-    """Group episodes into book -> page -> renderings structure."""
-    books = OrderedDict()
+    """Group episodes into shelf -> book -> page -> renderings structure."""
+    shelves = OrderedDict()
     for ep in episodes:
+        shelf = ep.get("shelf_name") or "Uncategorized"
         book = ep.get("book_name") or "Uncategorized"
         page_key = (ep["bookstack_type"], ep["bookstack_id"])
-        if book not in books:
-            books[book] = OrderedDict()
-        if page_key not in books[book]:
-            books[book][page_key] = {
+
+        if shelf not in shelves:
+            shelves[shelf] = OrderedDict()
+        if book not in shelves[shelf]:
+            shelves[shelf][book] = OrderedDict()
+        if page_key not in shelves[shelf][book]:
+            shelves[shelf][book][page_key] = {
                 "title": ep.get("title") or f"{ep['bookstack_type']} {ep['bookstack_id']}",
                 "renderings": [],
             }
-        books[book][page_key]["renderings"].append(ep)
+        shelves[shelf][book][page_key]["renderings"].append(ep)
 
     result = []
-    for book_name, pages in books.items():
+    for shelf_name, books in shelves.items():
+        book_list = []
+        for book_name, pages in books.items():
+            book_list.append({
+                "book_name": book_name,
+                "pages": list(pages.values()),
+            })
         result.append({
-            "book_name": book_name,
-            "pages": list(pages.values()),
+            "shelf_name": shelf_name,
+            "books": book_list,
         })
     return result
 
@@ -145,6 +155,8 @@ async def convert(
             "title": meta["title"],
             "book_name": meta["book_name"],
             "book_id": meta.get("book_id"),
+            "shelf_name": meta.get("shelf_name", ""),
+            "shelf_id": meta.get("shelf_id"),
         })
         episode_id = existing["id"]
     else:
@@ -155,6 +167,8 @@ async def convert(
             "title": meta["title"],
             "book_name": meta["book_name"],
             "book_id": meta.get("book_id"),
+            "shelf_name": meta.get("shelf_name", ""),
+            "shelf_id": meta.get("shelf_id"),
         })
 
     background_tasks.add_task(
@@ -185,6 +199,8 @@ async def process_conversion(
                 "description": content.get("description", ""),
                 "book_id": content.get("book_id"),
                 "book_name": content.get("book_name", ""),
+                "shelf_name": content.get("shelf_name", ""),
+                "shelf_id": content.get("shelf_id"),
             })
 
             text = content["text"]

@@ -16,6 +16,37 @@ class BookStackClient:
         self.headers = {
             "Authorization": f"Token {BOOKSTACK_TOKEN_ID}:{BOOKSTACK_TOKEN_SECRET}",
         }
+        self._book_shelf_cache = {}
+
+    async def _ensure_shelf_cache(self):
+        """Build book_id -> shelf mapping by listing all shelves."""
+        if self._book_shelf_cache:
+            return
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/shelves", headers=self.headers
+            )
+            if resp.status_code != 200:
+                return
+            for shelf_summary in resp.json().get("data", []):
+                shelf_resp = await client.get(
+                    f"{self.base_url}/api/shelves/{shelf_summary['id']}",
+                    headers=self.headers,
+                )
+                if shelf_resp.status_code != 200:
+                    continue
+                shelf = shelf_resp.json()
+                for book in shelf.get("books", []):
+                    self._book_shelf_cache[book["id"]] = {
+                        "shelf_id": shelf_summary["id"],
+                        "shelf_name": shelf_summary["name"],
+                    }
+
+    async def get_shelf_for_book(self, book_id: int) -> dict:
+        await self._ensure_shelf_cache()
+        return self._book_shelf_cache.get(
+            book_id, {"shelf_id": None, "shelf_name": ""}
+        )
 
     async def get_page(self, page_id: int) -> dict:
         async with httpx.AsyncClient() as client:
@@ -43,12 +74,15 @@ class BookStackClient:
             text_resp.raise_for_status()
 
             text = clean_text_for_tts(text_resp.text, meta["name"])
+            shelf_info = await self.get_shelf_for_book(meta.get("book_id")) if meta.get("book_id") else {"shelf_id": None, "shelf_name": ""}
             return {
                 "title": meta["name"],
                 "description": meta.get("description", ""),
                 "text": text,
                 "book_id": meta.get("book_id"),
                 "book_name": book_name,
+                "shelf_id": shelf_info["shelf_id"],
+                "shelf_name": shelf_info["shelf_name"],
             }
 
     async def get_chapter(self, chapter_id: int) -> dict:
@@ -77,12 +111,15 @@ class BookStackClient:
             text_resp.raise_for_status()
 
             text = clean_text_for_tts(text_resp.text, meta["name"])
+            shelf_info = await self.get_shelf_for_book(meta.get("book_id")) if meta.get("book_id") else {"shelf_id": None, "shelf_name": ""}
             return {
                 "title": meta["name"],
                 "description": meta.get("description", ""),
                 "text": text,
                 "book_id": meta.get("book_id"),
                 "book_name": book_name,
+                "shelf_id": shelf_info["shelf_id"],
+                "shelf_name": shelf_info["shelf_name"],
             }
 
     async def list_shelves(self) -> list:
@@ -193,10 +230,16 @@ class BookStackClient:
                 if book_resp.status_code == 200:
                     book_name = book_resp.json().get("name", "")
 
+            shelf_info = {"shelf_id": None, "shelf_name": ""}
+            if meta.get("book_id"):
+                shelf_info = await self.get_shelf_for_book(meta["book_id"])
+
             return {
                 "title": meta["name"],
                 "book_id": meta.get("book_id"),
                 "book_name": book_name,
+                "shelf_id": shelf_info["shelf_id"],
+                "shelf_name": shelf_info["shelf_name"],
             }
 
     async def resolve_query(self, query: str, content_type: str) -> int:

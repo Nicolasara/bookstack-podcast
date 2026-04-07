@@ -403,6 +403,40 @@
 
         .library-empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.4; }
 
+        .shelf-group {
+            margin-bottom: 20px;
+        }
+
+        .shelf-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .shelf-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            color: var(--text-muted);
+        }
+
+        .shelf-name {
+            font-weight: 700;
+            font-size: 15px;
+            flex: 1;
+            color: var(--text-primary);
+        }
+
+        .shelf-body {
+            padding-left: 12px;
+        }
+
+        .shelf-group.collapsed .chevron { transform: rotate(-90deg); }
+        .shelf-group.collapsed .shelf-body { display: none; }
+
         .book-group {
             margin-bottom: 12px;
         }
@@ -938,19 +972,28 @@
                 <h2>Episode Library</h2>
                 {% if grouped %}
                 {% set rail_colors = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#06b6d4'] %}
-                {% for book in grouped %}
-                {% set color = rail_colors[loop.index0 % rail_colors|length] %}
-                <div class="book-group" data-color="{{ color }}">
-                    <div class="book-header" onclick="toggleBook(this)">
-                        <div class="book-rail" style="background:{{ color }}"></div>
-                        <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                        <span class="book-name">{{ book.book_name }}</span>
-                        <span class="count-pill">{{ book.pages | length }} episode{{ 's' if book.pages | length != 1 }}</span>
+                {% for shelf in grouped %}
+                <div class="shelf-group">
+                    <div class="shelf-header" onclick="toggleShelf(this)">
+                        <svg class="shelf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span class="shelf-name">{{ shelf.shelf_name }}</span>
+                        <span class="count-pill">{{ shelf.books | length }} book{{ 's' if shelf.books | length != 1 }}</span>
                         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <div class="book-body" style="--rail-color: {{ color }}">
-                        <style>.book-group[data-color="{{ color }}"] .book-body::before { background: {{ color }}; }</style>
-                        {% for page in book.pages %}
+                    <div class="shelf-body">
+                    {% for book in shelf.books %}
+                    {% set color = rail_colors[loop.index0 % rail_colors|length] %}
+                    <div class="book-group" data-color="{{ color }}">
+                        <div class="book-header" onclick="toggleBook(this)">
+                            <div class="book-rail" style="background:{{ color }}"></div>
+                            <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            <span class="book-name">{{ book.book_name }}</span>
+                            <span class="count-pill">{{ book.pages | length }} episode{{ 's' if book.pages | length != 1 }}</span>
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <div class="book-body" style="--rail-color: {{ color }}">
+                            <style>.book-group[data-color="{{ color }}"] .book-body::before { background: {{ color }}; }</style>
+                            {% for page in book.pages %}
                         <div class="episode-card">
                             <div class="episode-header">
                                 <span class="type-pill">EPISODE</span>
@@ -1030,7 +1073,10 @@
                             </div>
                             {% endfor %}
                         </div>
-                        {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
                     </div>
                 </div>
                 {% endfor %}
@@ -1259,6 +1305,10 @@
     }
 
     /* ── Book collapse ──────────────────────────────────── */
+    function toggleShelf(header) {
+        header.parentElement.classList.toggle('collapsed');
+    }
+
     function toggleBook(header) {
         header.parentElement.classList.toggle('collapsed');
     }
