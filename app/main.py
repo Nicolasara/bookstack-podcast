@@ -277,6 +277,8 @@ async def _scan_and_convert():
                 "title": page["name"],
                 "book_name": page["book_name"],
                 "book_id": page.get("book_id"),
+                "shelf_name": page.get("shelf_name", ""),
+                "shelf_id": page.get("shelf_id"),
             })
             await process_conversion(
                 episode_id, "page", page["id"], voice, mode
@@ -316,6 +318,8 @@ async def api_convert_all(
             "title": page["name"],
             "book_name": page["book_name"],
             "book_id": page.get("book_id"),
+            "shelf_name": page.get("shelf_name", ""),
+            "shelf_id": page.get("shelf_id"),
         })
         background_tasks.add_task(
             process_conversion, episode_id, "page", page["id"], voice, mode

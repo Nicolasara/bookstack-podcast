@@ -140,6 +140,7 @@ class BookStackClient:
             )
             resp.raise_for_status()
             shelf = resp.json()
+            shelf_name = shelf.get("name", "")
 
             pages = []
             for book_info in shelf.get("books", []):
@@ -150,14 +151,15 @@ class BookStackClient:
                 if book_resp.status_code != 200:
                     continue
                 book = book_resp.json()
+                page_base = {
+                    "book_name": book["name"],
+                    "book_id": book["id"],
+                    "shelf_name": shelf_name,
+                    "shelf_id": shelf_id,
+                }
                 for item in book.get("contents", []):
                     if item["type"] == "page":
-                        pages.append({
-                            "id": item["id"],
-                            "name": item["name"],
-                            "book_name": book["name"],
-                            "book_id": book["id"],
-                        })
+                        pages.append({"id": item["id"], "name": item["name"], **page_base})
                     elif item["type"] == "chapter":
                         ch_resp = await client.get(
                             f"{self.base_url}/api/chapters/{item['id']}",
@@ -166,12 +168,7 @@ class BookStackClient:
                         if ch_resp.status_code != 200:
                             continue
                         for page in ch_resp.json().get("pages", []):
-                            pages.append({
-                                "id": page["id"],
-                                "name": page["name"],
-                                "book_name": book["name"],
-                                "book_id": book["id"],
-                            })
+                            pages.append({"id": page["id"], "name": page["name"], **page_base})
             return pages
 
     async def get_book_pages(self, book_id: int) -> list:
@@ -183,17 +180,18 @@ class BookStackClient:
             )
             resp.raise_for_status()
             book = resp.json()
-            book_name = book["name"]
+            shelf_info = await self.get_shelf_for_book(book_id)
+            page_base = {
+                "book_name": book["name"],
+                "book_id": book_id,
+                "shelf_name": shelf_info["shelf_name"],
+                "shelf_id": shelf_info["shelf_id"],
+            }
 
             pages = []
             for item in book.get("contents", []):
                 if item["type"] == "page":
-                    pages.append({
-                        "id": item["id"],
-                        "name": item["name"],
-                        "book_name": book_name,
-                        "book_id": book_id,
-                    })
+                    pages.append({"id": item["id"], "name": item["name"], **page_base})
                 elif item["type"] == "chapter":
                     ch_resp = await client.get(
                         f"{self.base_url}/api/chapters/{item['id']}",
@@ -202,11 +200,7 @@ class BookStackClient:
                     if ch_resp.status_code != 200:
                         continue
                     for page in ch_resp.json().get("pages", []):
-                        pages.append({
-                            "id": page["id"],
-                            "name": page["name"],
-                            "book_name": book_name,
-                            "book_id": book_id,
+                        pages.append({"id": page["id"], "name": page["name"], **page_base
                         })
             return pages
 
