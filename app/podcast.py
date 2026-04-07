@@ -71,14 +71,21 @@ async def _generate_gemini(content: str, title: str) -> list[dict]:
         raise ValueError("Gemini API key not configured — set it in Settings")
 
     client = genai.Client(api_key=api_key)
-    model = get_setting("gemini_model", "gemini-3-flash-preview")
+    model = get_setting("gemini_model", "gemini-2.5-flash")
     prompt = (
         f"{SYSTEM_PROMPT}\n\n"
         f"Create a podcast episode discussing this content:\n\n"
         f"Title: {title}\n\n{content}"
     )
+    # Disable thinking — unnecessary for creative writing, saves ~30s
+    from google.genai.types import GenerateContentConfig, ThinkingConfig
     response = await client.aio.models.generate_content(
-        model=model, contents=prompt
+        model=model,
+        contents=prompt,
+        config=GenerateContentConfig(
+            thinking_config=ThinkingConfig(thinking_budget=0),
+            temperature=0.8,
+        ),
     )
 
     segments = parse_script(response.text)
