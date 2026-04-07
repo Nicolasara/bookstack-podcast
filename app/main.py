@@ -111,6 +111,7 @@ async def index(request: Request, q: str = ""):
             "has_pending": has_pending,
             "has_podcast": has_podcast_key(),
             "llm_provider": get_setting("llm_provider", "openai"),
+            "llm_model": get_setting("llm_model", "gpt-4o-mini"),
             "has_openai_key": bool(get_setting("openai_api_key")),
             "has_gemini_key": bool(get_setting("gemini_api_key")),
             "bookstack_url": get_setting("bookstack_url", ""),
@@ -368,6 +369,7 @@ async def save_settings(
     podcast_voice_a: str = Form(""),
     podcast_voice_b: str = Form(""),
     llm_provider: str = Form("openai"),
+    llm_model: str = Form(""),
     openai_api_key: str = Form(""),
     gemini_api_key: str = Form(""),
     auto_convert_enabled: str = Form("false"),
@@ -398,6 +400,8 @@ async def save_settings(
         else:
             set_setting("edge_podcast_voice_b", podcast_voice_b)
     set_setting("llm_provider", llm_provider)
+    if llm_model:
+        set_setting("llm_model", llm_model)
     if openai_api_key:
         set_setting("openai_api_key", openai_api_key)
     if gemini_api_key:
