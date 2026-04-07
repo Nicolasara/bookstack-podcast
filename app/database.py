@@ -122,6 +122,20 @@ class Database:
             data["error_message"] = error
         await self.update_episode(episode_id, data)
 
+    async def timeout_stale_episodes(self, timeout_minutes: int = 10) -> int:
+        """Mark episodes stuck in pending/processing for over timeout_minutes as errors.
+        Returns number of episodes timed out."""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "UPDATE episodes SET status = 'error', "
+                "error_message = 'Timed out — conversion took too long. Try again.' "
+                "WHERE status IN ('pending', 'processing') "
+                "AND created_at < datetime('now', ?)",
+                (f"-{timeout_minutes} minutes",),
+            )
+            await db.commit()
+            return cursor.rowcount
+
     async def delete_episode(self, episode_id: int):
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM episodes WHERE id = ?", (episode_id,))

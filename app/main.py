@@ -2,17 +2,18 @@ import asyncio
 import os
 import re
 from collections import OrderedDict
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from .bookstack import BookStackClient
 from .database import Database
 from .feed import generate_podcast_feed
 from .settings import get_setting, has_podcast_key, set_setting
-from .tts import generate_audio, generate_podcast_audio, get_voice_options, get_podcast_voices, get_default_narration_voice
+from .tts import generate_audio, generate_podcast_audio, get_voice_options, get_podcast_voices, get_default_narration_voice, VOICE_OPTIONS, OPENAI_VOICE_OPTIONS
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -31,6 +32,14 @@ AUDIO_DIR = DATA_DIR / "audio"
 db = Database(DATA_DIR / "episodes.db")
 bookstack = BookStackClient()
 conversion_lock = asyncio.Lock()
+
+
+def _all_voices() -> list:
+    """Return all voices with engine tags for the settings dropdowns."""
+    return (
+        [{"id": v[0], "name": v[1], "engine": "edge"} for v in VOICE_OPTIONS]
+        + [{"id": v[0], "name": v[1], "engine": "openai"} for v in OPENAI_VOICE_OPTIONS]
+    )
 
 
 def _voice_label(voice_id: str) -> str:
@@ -92,8 +101,12 @@ async def startup():
     asyncio.create_task(auto_convert_worker())
 
 
+EPISODE_TIMEOUT_MINUTES = 10
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, q: str = ""):
+    await db.timeout_stale_episodes(EPISODE_TIMEOUT_MINUTES)
     episodes = await db.get_episodes()
     has_pending = any(e["status"] in ("pending", "processing") for e in episodes)
     for ep in episodes:
@@ -107,6 +120,7 @@ async def index(request: Request, q: str = ""):
             "episodes": episodes,
             "grouped": grouped,
             "voices": get_voice_options(),
+            "all_voices": _all_voices(),
             "tts_engine": tts_engine,
             "has_pending": has_pending,
             "has_podcast": has_podcast_key(),
@@ -157,6 +171,7 @@ async def convert(
         await db.update_episode(existing["id"], {
             "status": "pending",
             "error_message": None,
+            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "title": meta["title"],
             "book_name": meta["book_name"],
             "book_id": meta.get("book_id"),
@@ -361,6 +376,7 @@ async def list_shelves():
 
 @app.post("/settings")
 async def save_settings(
+    request: Request,
     bookstack_url: str = Form(""),
     bookstack_token_id: str = Form(""),
     bookstack_token_secret: str = Form(""),
@@ -410,6 +426,12 @@ async def save_settings(
     set_setting("auto_convert_shelves", auto_convert_shelves)
     set_setting("auto_convert_mode", auto_convert_mode)
     set_setting("auto_convert_interval", auto_convert_interval)
+
+    # Return JSON for AJAX requests, redirect for normal form POSTs
+    accept = request.headers.get("accept", "")
+    xhr = request.headers.get("x-requested-with", "")
+    if "application/json" in accept or xhr.lower() == "xmlhttprequest":
+        return JSONResponse({"status": "ok"})
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -431,6 +453,7 @@ async def search(q: str = ""):
 @app.get("/api/episodes/status")
 async def episodes_status():
     """Lightweight endpoint for polling episode status changes."""
+    await db.timeout_stale_episodes(EPISODE_TIMEOUT_MINUTES)
     episodes = await db.get_episodes()
     return [
         {"id": e["id"], "status": e["status"], "title": e["title"]}

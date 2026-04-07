@@ -875,6 +875,17 @@
 
         .settings-save-btn:hover { background: #2563eb; }
 
+        .settings-saved-indicator {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent-green);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .settings-saved-indicator.visible {
+            opacity: 1;
+        }
+
         /* Toast */
         .toast {
             position: fixed;
@@ -1140,26 +1151,26 @@
                             <p class="field-hint">Changing the engine changes available voices. Save and refresh to update.</p>
                             <div class="field-group">
                                 <label class="field-label">Default Narration Voice</label>
-                                <select name="default_narration_voice" class="field-select">
-                                    {% for vid, vname in voices %}
-                                    <option value="{{ vid }}" {% if vid == default_narration_voice %}selected{% endif %}>{{ vname }}</option>
+                                <select name="default_narration_voice" class="field-select engine-voice">
+                                    {% for v in all_voices %}
+                                    <option value="{{ v.id }}" data-engine="{{ v.engine }}" {% if v.id == default_narration_voice %}selected{% endif %}>{{ v.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="settings-row">
                                 <div class="field-group">
                                     <label class="field-label">Podcast Voice A (Host Alex)</label>
-                                    <select name="podcast_voice_a" class="field-select">
-                                        {% for vid, vname in voices %}
-                                        <option value="{{ vid }}" {% if vid == podcast_voices.A %}selected{% endif %}>{{ vname }}</option>
+                                    <select name="podcast_voice_a" class="field-select engine-voice">
+                                        {% for v in all_voices %}
+                                        <option value="{{ v.id }}" data-engine="{{ v.engine }}" {% if v.id == podcast_voices.A %}selected{% endif %}>{{ v.name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label">Podcast Voice B (Host Sam)</label>
-                                    <select name="podcast_voice_b" class="field-select">
-                                        {% for vid, vname in voices %}
-                                        <option value="{{ vid }}" {% if vid == podcast_voices.B %}selected{% endif %}>{{ vname }}</option>
+                                    <select name="podcast_voice_b" class="field-select engine-voice">
+                                        {% for v in all_voices %}
+                                        <option value="{{ v.id }}" data-engine="{{ v.engine }}" {% if v.id == podcast_voices.B %}selected{% endif %}>{{ v.name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -1178,18 +1189,14 @@
                             </div>
                             <div class="field-group">
                                 <label class="field-label">Model</label>
-                                <select name="llm_model" class="field-select">
-                                    <optgroup label="OpenAI">
-                                        <option value="gpt-4o-mini" {% if llm_model == 'gpt-4o-mini' %}selected{% endif %}>gpt-4o-mini (fast, cheap)</option>
-                                        <option value="gpt-4o" {% if llm_model == 'gpt-4o' %}selected{% endif %}>gpt-4o</option>
-                                        <option value="gpt-4.1-mini" {% if llm_model == 'gpt-4.1-mini' %}selected{% endif %}>gpt-4.1-mini</option>
-                                        <option value="gpt-4.1-nano" {% if llm_model == 'gpt-4.1-nano' %}selected{% endif %}>gpt-4.1-nano (fastest)</option>
-                                    </optgroup>
-                                    <optgroup label="Gemini">
-                                        <option value="gemini-2.5-flash" {% if llm_model == 'gemini-2.5-flash' %}selected{% endif %}>gemini-2.5-flash</option>
-                                        <option value="gemini-2.5-flash-lite" {% if llm_model == 'gemini-2.5-flash-lite' %}selected{% endif %}>gemini-2.5-flash-lite</option>
-                                        <option value="gemini-3-flash-preview" {% if llm_model == 'gemini-3-flash-preview' %}selected{% endif %}>gemini-3-flash-preview</option>
-                                    </optgroup>
+                                <select name="llm_model" class="field-select" id="llm-model-select">
+                                    <option value="gpt-4o-mini" data-provider="openai" {% if llm_model == 'gpt-4o-mini' %}selected{% endif %}>gpt-4o-mini (fast, cheap)</option>
+                                    <option value="gpt-4o" data-provider="openai" {% if llm_model == 'gpt-4o' %}selected{% endif %}>gpt-4o</option>
+                                    <option value="gpt-4.1-mini" data-provider="openai" {% if llm_model == 'gpt-4.1-mini' %}selected{% endif %}>gpt-4.1-mini</option>
+                                    <option value="gpt-4.1-nano" data-provider="openai" {% if llm_model == 'gpt-4.1-nano' %}selected{% endif %}>gpt-4.1-nano (fastest)</option>
+                                    <option value="gemini-2.5-flash" data-provider="gemini" {% if llm_model == 'gemini-2.5-flash' %}selected{% endif %}>gemini-2.5-flash</option>
+                                    <option value="gemini-2.5-flash-lite" data-provider="gemini" {% if llm_model == 'gemini-2.5-flash-lite' %}selected{% endif %}>gemini-2.5-flash-lite</option>
+                                    <option value="gemini-3-flash-preview" data-provider="gemini" {% if llm_model == 'gemini-3-flash-preview' %}selected{% endif %}>gemini-3-flash-preview</option>
                                 </select>
                             </div>
                         </div>
@@ -1250,7 +1257,8 @@
                         </div>
                     </div>
                     <div class="settings-actions">
-                        <button type="submit" class="settings-save-btn">Save Settings</button>
+                        <span id="settings-saved-indicator" class="settings-saved-indicator"></span>
+                        <noscript><button type="submit" class="settings-save-btn">Save Settings</button></noscript>
                     </div>
                 </form>
             </div>
@@ -1467,22 +1475,130 @@
         setTimeout(function() { t.classList.remove('show'); }, 2500);
     }
 
-    /* ── Settings form (AJAX submit) ────────────────────── */
-    document.getElementById('settings-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        try {
-            var resp = await fetch('/settings', {
-                method: 'POST',
-                body: new FormData(this),
-                redirect: 'manual',
+    /* ── Settings form (auto-save on change) ───────────── */
+    (function() {
+        var form = document.getElementById('settings-form');
+        var indicator = document.getElementById('settings-saved-indicator');
+        var saveTimer = null;
+        var fadeTimer = null;
+
+        // Track which password fields have been actually typed into
+        form.querySelectorAll('input[type="password"]').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.dataset.dirty = 'true';
             });
-            showToast('Settings saved');
-        } catch (err) {
-            showToast('Failed to save settings');
+        });
+
+        function showSaved() {
+            indicator.textContent = 'Saved';
+            indicator.classList.add('visible');
+            if (fadeTimer) clearTimeout(fadeTimer);
+            fadeTimer = setTimeout(function() {
+                indicator.classList.remove('visible');
+            }, 2000);
         }
-    });
+
+        function showError() {
+            indicator.textContent = 'Save failed';
+            indicator.style.color = 'var(--accent-red)';
+            indicator.classList.add('visible');
+            if (fadeTimer) clearTimeout(fadeTimer);
+            fadeTimer = setTimeout(function() {
+                indicator.classList.remove('visible');
+                indicator.style.color = '';
+            }, 3000);
+        }
+
+        async function saveSettings() {
+            var fd = new FormData(form);
+            // Remove password fields that were not actually typed into
+            form.querySelectorAll('input[type="password"]').forEach(function(input) {
+                if (!input.dataset.dirty) {
+                    fd.delete(input.name);
+                }
+            });
+            // Ensure auto_convert_enabled is sent correctly
+            if (!form.querySelector('[name="auto_convert_enabled"]').checked) {
+                fd.set('auto_convert_enabled', 'false');
+            }
+            try {
+                var resp = await fetch('/settings', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'Accept': 'application/json' },
+                });
+                if (resp.ok) {
+                    showSaved();
+                } else {
+                    showError();
+                }
+            } catch (err) {
+                showError();
+            }
+        }
+
+        // Debounced auto-save on any form change
+        form.addEventListener('change', function() {
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveSettings, 300);
+        });
+
+        // Also handle submit (e.g. Enter key) gracefully
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (saveTimer) clearTimeout(saveTimer);
+            saveSettings();
+        });
+    })();
 
     /* ── Shelf picker ───────────────────────────────────── */
+    /* ── Settings: filter models by provider, voices by engine ── */
+    function filterByProvider() {
+        var provider = document.querySelector('[name=llm_provider]').value;
+        var modelSelect = document.getElementById('llm-model-select');
+        var hadSelection = modelSelect.value;
+        var firstVisible = null;
+        Array.from(modelSelect.options).forEach(function(opt) {
+            var match = opt.dataset.provider === provider;
+            opt.hidden = !match;
+            opt.disabled = !match;
+            if (match && !firstVisible) firstVisible = opt.value;
+        });
+        // If current selection is now hidden, pick first visible
+        var currentOpt = modelSelect.querySelector('option[value="' + hadSelection + '"]');
+        if (currentOpt && currentOpt.hidden && firstVisible) {
+            modelSelect.value = firstVisible;
+        }
+    }
+
+    function filterByEngine() {
+        var engine = document.querySelector('[name=tts_engine]').value;
+        document.querySelectorAll('select.engine-voice').forEach(function(sel) {
+            var hadSelection = sel.value;
+            var firstVisible = null;
+            Array.from(sel.options).forEach(function(opt) {
+                var match = opt.dataset.engine === engine;
+                opt.hidden = !match;
+                opt.disabled = !match;
+                if (match && !firstVisible) firstVisible = opt.value;
+            });
+            var currentOpt = sel.querySelector('option[value="' + hadSelection + '"]');
+            if (currentOpt && currentOpt.hidden && firstVisible) {
+                sel.value = firstVisible;
+            }
+        });
+    }
+
+    // Wire up change handlers
+    var providerSel = document.querySelector('[name=llm_provider]');
+    if (providerSel) providerSel.addEventListener('change', filterByProvider);
+    var engineSel = document.querySelector('[name=tts_engine]');
+    if (engineSel) engineSel.addEventListener('change', filterByEngine);
+
+    // Apply filters on load
+    filterByProvider();
+    filterByEngine();
+
     async function loadShelves() {
         var picker = document.getElementById('shelf-picker');
         if (picker.children.length) return;
