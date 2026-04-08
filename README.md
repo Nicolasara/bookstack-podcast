@@ -107,35 +107,15 @@ OpenAI TTS uses `gpt-4o-mini-tts-2025-03-20` with batched parallel requests for 
 
 ## BookStack Hack (Optional)
 
-An optional BookStack theme module that adds audio controls directly to BookStack pages.
+A companion BookStack theme module embeds an audio player and convert buttons directly into BookStack page sidebars, so you don't need to leave BookStack to listen to or generate podcasts.
 
-### `bookstack-hack/` — Embedded player
+The hack lives in [`bookstack-hack/`](bookstack-hack/) and is in the process of being extracted into its own standalone repo so it can be installed via `php artisan bookstack:install-module`. Until that's done, you can install it manually by copying the directory into your BookStack theme:
 
-Adds an **Audio** section to the page sidebar with:
-- Inline audio player for existing episodes
-- **Generate Podcast** / **Generate Narration** buttons
-- Auto-polls for conversion status
+```bash
+cp -r bookstack-hack/ /path/to/bookstack/themes/custom/modules/podcast/
+```
 
-**Installation:**
-
-1. Copy `bookstack-hack/` to your BookStack themes directory:
-   ```bash
-   cp -r bookstack-hack/ /path/to/bookstack/themes/custom/modules/podcast/
-   ```
-
-2. Add `PODCAST_SERVICE_URL` to your BookStack `.env`:
-   ```env
-   PODCAST_SERVICE_URL=https://your-bookstack-podcast-url
-   ```
-
-3. Clear BookStack's cache:
-   ```bash
-   php artisan view:clear && php artisan cache:clear
-   ```
-
-### `bookstack-hack-link/` — Simple link buttons
-
-A lighter alternative that adds **Listen** and **Convert to Podcast** links to the page actions sidebar.
+Then set `PODCAST_SERVICE_URL` in your BookStack `.env` and clear BookStack's view cache.
 
 ## API
 
