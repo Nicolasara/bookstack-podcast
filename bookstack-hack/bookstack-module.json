@@ -1,5 +1,0 @@
-{
-    "name": "Podcast",
-    "version": "1.0.0",
-    "description": "Adds inline audio podcast generation and playback to BookStack pages. Requires a BookStack Podcast service. Set PODCAST_SERVICE_URL in your .env."
-}

@@ -109,13 +109,7 @@ OpenAI TTS uses `gpt-4o-mini-tts-2025-03-20` with batched parallel requests for 
 
 A companion BookStack theme module embeds an audio player and convert buttons directly into BookStack page sidebars, so you don't need to leave BookStack to listen to or generate podcasts.
 
-The hack lives in [`bookstack-hack/`](bookstack-hack/) and is in the process of being extracted into its own standalone repo so it can be installed via `php artisan bookstack:install-module`. Until that's done, you can install it manually by copying the directory into your BookStack theme:
-
-```bash
-cp -r bookstack-hack/ /path/to/bookstack/themes/custom/modules/podcast/
-```
-
-Then set `PODCAST_SERVICE_URL` in your BookStack `.env` and clear BookStack's view cache.
+It's a separate project: **[bookstack-podcast-hack](https://github.com/Nicolasara/bookstack-podcast-hack)**.
 
 ## API
 
