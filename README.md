@@ -21,30 +21,52 @@ Convert [BookStack](https://www.bookstackapp.com/) wiki pages into audio you can
 
 In BookStack, go to your profile > **API Tokens** > **Create Token**.
 
-### 2. Deploy
+### 2. Run the container
+
+The easiest way is to use the pre-built image from GitHub Container Registry:
 
 ```bash
-git clone https://github.com/your-user/bookstack-podcast.git
+docker run -d \
+  --name bookstack-podcast \
+  -p 8300:8000 \
+  -v ./data:/app/data \
+  --restart unless-stopped \
+  ghcr.io/nicolasara/bookstack-podcast:latest
+```
+
+Or with Docker Compose:
+
+```yaml
+services:
+  bookstack-podcast:
+    image: ghcr.io/nicolasara/bookstack-podcast:latest
+    container_name: bookstack-podcast
+    ports:
+      - "8300:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+### 3. Configure
+
+Open `http://localhost:8300` and click **Settings**. Configure:
+
+- **BookStack Connection** — your BookStack URL and API token
+- **Text-to-Speech** — pick an engine (Edge TTS works without any API key)
+- **Podcast Script (LLM)** — only needed for podcast mode, requires an OpenAI or Gemini API key
+
+That's it. All settings auto-save. Search for a page and convert it.
+
+### Building from source
+
+If you want to build the image yourself:
+
+```bash
+git clone https://github.com/Nicolasara/bookstack-podcast.git
 cd bookstack-podcast
-cp .env.example .env
+docker compose up -d --build
 ```
-
-Edit `.env` with your BookStack URL and API token:
-
-```env
-BOOKSTACK_URL=http://your-bookstack:8084
-BOOKSTACK_TOKEN_ID=your-token-id
-BOOKSTACK_TOKEN_SECRET=your-token-secret
-BASE_URL=http://localhost:8300
-```
-
-Start the service:
-
-```bash
-docker compose up -d
-```
-
-Open `http://localhost:8300` and you're ready to go. Everything else (TTS engine, API keys, voices, LLM provider) can be configured in the Settings page.
 
 ### 3. (Optional) API keys
 
@@ -163,4 +185,8 @@ docker compose build
 
 ## License
 
-MIT
+Apache 2.0 — see [LICENSE](LICENSE).
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. All commits must include a Developer Certificate of Origin sign-off (`git commit -s`).
